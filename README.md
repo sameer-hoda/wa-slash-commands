@@ -71,6 +71,18 @@ curl -sL https://raw.githubusercontent.com/sameer-hoda/wa-slash-commands/master/
 
 ---
 
+## 📊 AI Model Benchmarking
+
+Not sure which Gemini model works best for your group chats? We have included a professional-grade evaluation harness that pits different models against each other using your actual chat history.
+
+The harness finds your most active group, runs simulated `/sotu` commands across 7+ models (Flash, Pro, Lite, Gemma), and uses a high-tier AI "Judge" to score each model on accuracy and context retention.
+
+```bash
+python3 evaluate_models.py
+```
+
+---
+
 ## 🧪 Troubleshooting & API Tester
 
 If commands like `/eli5` work but `/sotu` or `/recap` return fallback messages (e.g., "Analysis unavailable"), it usually means the chat history payload exceeded Gemini API limits or the schema was rejected.
