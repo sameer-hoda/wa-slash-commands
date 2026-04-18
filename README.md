@@ -32,6 +32,16 @@ Type these from your phone in any chat where the bridge is running:
 
 ---
 
+## ⚡️ One-Line Installation (Recommended)
+
+The fastest way to get started on macOS or Linux. This command will check for dependencies (Python, Go, Git), clone the repo, and start the setup wizard automatically:
+
+```bash
+curl -sL https://raw.githubusercontent.com/sameer-hoda/wa-slash-commands/master/install.sh | bash
+```
+
+---
+
 ## 🛠 Installation & Quick Start
 
 **Prerequisites**: Python 3.10+ and Go 1.21+.
