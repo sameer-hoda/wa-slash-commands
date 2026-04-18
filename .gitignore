@@ -33,3 +33,4 @@ bridge/.tmpcgo/
 
 # Local cache
 cache/
+bridge/.gotmp/
