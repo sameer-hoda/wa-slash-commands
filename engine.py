@@ -94,7 +94,7 @@ def gemini_json(prompt: str, fallback: dict, schema: Optional[dict] = None) -> d
 def gemini_text(prompt: str) -> str:
     """Freeform Gemini call — returns raw text (used for /eli5)."""
     if not _model:
-        return "\n"AI unavailable. Please check GEMINI_API_KEY."
+        return "AI unavailable. Please check GEMINI_API_KEY."
     print(f"🤖 [Gemini API] Requesting Text... (Payload: {len(prompt):,} chars)")
     try:
         resp = _model.generate_content(prompt)
@@ -234,7 +234,7 @@ def _resolve_sender_name(raw_name: str) -> str:
     If it looks like a raw LID, phone number, or JID, resolve it to a human name.
     """
     if not raw_name:
-        return "\n"Unknown"
+        return "Unknown"
 
     # Already looks like a real name (has letters, not just digits/@)
     stripped = raw_name.replace("@lid", "").replace("@s.whatsapp.net", "").strip()
