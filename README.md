@@ -61,6 +61,20 @@ Type these from your phone in any chat where the bridge is running:
 
 ---
 
+## 🧪 Troubleshooting & API Tester
+
+If commands like `/eli5` work but `/sotu` or `/recap` return fallback messages (e.g., "Analysis unavailable"), it usually means the chat history payload exceeded Gemini API limits or the schema was rejected.
+
+We have included a diagnostic tool to verify your API key supports both standard text generation and strict JSON schema generation:
+
+```bash
+python3 test_api.py
+```
+
+Additionally, `wacmd.py` will print detailed logs to your terminal (payload size, earliest message pulled) whenever a command is invoked to help you debug context limits.
+
+---
+
 ## 🏗 Architecture
 
 The system is split into two seamless components:

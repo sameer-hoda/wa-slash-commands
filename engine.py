@@ -73,6 +73,7 @@ def gemini_json(prompt: str, fallback: dict, schema: Optional[dict] = None) -> d
     if schema:
         config["response_schema"] = schema
 
+    print(f"🤖 [Gemini API] Requesting JSON... (Payload: {len(prompt):,} chars)")
     for attempt in range(2):
         try:
             resp = _model.generate_content(
@@ -81,8 +82,10 @@ def gemini_json(prompt: str, fallback: dict, schema: Optional[dict] = None) -> d
             )
             return json.loads(resp.text)
         except json.JSONDecodeError as e:
+            print(f"⚠️ [Gemini API] JSON parse failed: {e}")
             logging.warning(f"JSON parse failed (attempt {attempt+1}): {e}")
         except Exception as e:
+            print(f"❌ [Gemini API] Error: {e}")
             logging.error(f"Gemini call error (attempt {attempt+1}): {e}")
             break
     return fallback
@@ -92,10 +95,12 @@ def gemini_text(prompt: str) -> str:
     """Freeform Gemini call — returns raw text (used for /eli5)."""
     if not _model:
         return "AI unavailable. Please check GEMINI_API_KEY."
+    print(f"🤖 [Gemini API] Requesting Text... (Payload: {len(prompt):,} chars)")
     try:
         resp = _model.generate_content(prompt)
         return resp.text
     except Exception as e:
+        print(f"❌ [Gemini API] Error: {e}")
         logging.error(f"Gemini text error: {e}")
         return f"AI Error: {e}"
 
@@ -458,20 +463,34 @@ def clean_message_content(text, lid_map=None):
     return _MENTION_RE.sub(_replace, text)
 
 
-def format_messages_ist(messages) -> str:
+def format_messages_ist(messages, max_chars=100000) -> str:
     """Format messages as [HH:MM IST] Sender: content lines.
     Bulk-resolves all @LID mentions in one DB round-trip.
+    Truncates to `max_chars` to prevent API payload errors, keeping the most recent.
     """
     messages = clean_messages_content(messages)  # bulk mention resolution
     lines = []
-    for sender, content, dt in messages:
+    current_chars = 0
+    
+    # Process from newest to oldest to prioritize recent context
+    for sender, content, dt in reversed(messages):
         if dt:
             ist = utc_to_ist(dt)
             ts_str = ist.strftime("%H:%M IST")
         else:
             ts_str = "??"
-        lines.append(f"[{ts_str}] {sender}: {content or ''}")
-    return "\n".join(lines)
+            
+        line = f"[{ts_str}] {sender}: {content or ''}"
+        
+        if current_chars + len(line) > max_chars:
+            lines.append(f"... [Truncated {len(messages) - len(lines)} older messages to fit API limits]")
+            break
+            
+        lines.append(line)
+        current_chars += len(line) + 1
+        
+    return "
+".join(reversed(lines))
 
 
 def get_activity_stats(jid: str, days: int = 14) -> List[Tuple]:

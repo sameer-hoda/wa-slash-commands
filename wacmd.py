@@ -47,6 +47,15 @@ logging.basicConfig(
 
 
 # ── WA send ───────────────────────────────────────────────────────────────────
+
+def _print_context_info(msgs, command):
+    if not msgs:
+        return
+    earliest = msgs[0][2]
+    latest = msgs[-1][2]
+    earliest_str = earliest.strftime("%Y-%m-%d %H:%M") if earliest else "??"
+    print(f"📚 [{command}] Context Loaded: {len(msgs):,} messages (Earliest: {earliest_str})")
+
 def send_message(jid: str, text: str) -> None:
     # Resolve @lid JIDs to @s.whatsapp.net before sending.
     send_to = resolve_send_jid(jid)
@@ -74,6 +83,7 @@ def cmd_sotu(jid: str) -> None:
         return
 
     msgs = get_messages(jid, days=30, limit=2000)
+    _print_context_info(msgs, "/sotu")
     if not msgs:
         send_message(jid, "⚠️ Not enough history for a State of the Union.")
         return
@@ -144,6 +154,7 @@ Output ONLY valid JSON, no markdown.
 def cmd_pending(jid: str) -> None:
     t0 = time.time()
     msgs = get_messages(jid, days=30, limit=500)
+    _print_context_info(msgs, "/pending")
     if not msgs:
         send_message(jid, "⚠️ No recent messages to analyse for pending tasks.")
         return
@@ -216,6 +227,7 @@ def cmd_stats(jid: str, days: int = 14) -> None:
 
     activity = get_activity_stats(jid, days=days)
     msgs = get_messages(jid, days=days, limit=1000)
+    _print_context_info(msgs, "/stats")
 
     if not activity:
         send_message(jid, f"📊 *Team Stats — Last {days} Days*\n\n_No messages found._")
@@ -283,21 +295,12 @@ Output ONLY valid JSON, no markdown.
 def cmd_recap(jid: str) -> None:
     t0 = time.time()
     msgs = get_messages(jid, days=1, limit=2000)
+    _print_context_info(msgs, "/recap")
     if not msgs:
         send_message(jid, "📌 *24h Recap*\n\n_No messages in the last 24 hours._")
         return
 
-    # Build the context with IST timestamps pre-computed in Python (not Gemini)
-    # Each message is tagged with its IST time before passing to Gemini
-    context_lines = []
-    for sender, content, dt in msgs:
-        if dt:
-            ist = utc_to_ist(dt)
-            ts = ist.strftime("%H:%M IST")
-        else:
-            ts = "??"
-        context_lines.append(f"[{ts}] {sender}: {content}")
-    context = "\n".join(context_lines)
+    context = format_messages_ist(msgs)
 
     prompt = f"""You are a sharp executive assistant. Produce a chronological 24-hour timeline of key events from this WhatsApp chat. Filter out trivial chatter, generic acknowledgments ("ok", "done", "will do"), and system messages. Only include significant signals: decisions, escalations, commitments, blocks, and data shared. Keep the action summaries concise but highly informative. 
 
@@ -344,6 +347,7 @@ Output ONLY valid JSON, no markdown.
 def cmd_eli5(jid: str, topic: str) -> None:
     t0 = time.time()
     msgs = get_messages(jid, days=30, limit=500)
+    _print_context_info(msgs, "/eli5")
     context = format_messages_ist(msgs)
     topic_str = topic if topic else "the current conversation context"
 
