@@ -1,68 +1,88 @@
-# 🤖 wa-slash-commands
+<div align="center">
+  <h1>💬 wa-slash-commands</h1>
+  <p><strong>An AI-powered Chief of Staff inside your WhatsApp group chats.</strong></p>
+  
+  <p>
+    <img alt="Python" src="https://img.shields.io/badge/Python-3.10+-blue.svg" />
+    <img alt="Go" src="https://img.shields.io/badge/Go-1.21+-00ADD8.svg" />
+    <img alt="License" src="https://img.shields.io/badge/License-MIT-green.svg" />
+  </p>
+</div>
 
-`wa-slash-commands` is a standalone, intelligent WhatsApp Slash Command CLI that acts as your personal Chief of Staff. It leverages the Gemini API to analyze your WhatsApp group chats and extract rich insights — tracking pending tasks, summarizing discussions, measuring team dynamics, and more.
+`wa-slash-commands` is a standalone, intelligent WhatsApp CLI integration that turns any WhatsApp chat into a productive workspace. It leverages a native Go bridge (`whatsmeow`) and the Google Gemini API to analyze conversations, extract rich insights, and respond to `/slash` commands directly in the chat.
 
-## High-Level UX
+## ✨ Features
 
-This tool is designed to work in tandem with a local WhatsApp bridge (like the excellent [`whatsmeow`](https://github.com/tulir/whatsmeow) Go bridge). 
+- 🔒 **Owner-Protected**: Strict security checks ensure commands are *only* executed when sent by your personal phone number. Other group members typing `/commands` are silently ignored.
+- 🧠 **AI-Powered Synthesis**: Powered by Gemini 1.5 with Strict JSON Schema Enforcement to guarantee structured, non-hallucinated responses.
+- 📦 **Self-Contained**: Comes with an embedded, auto-compiling Go bridge. No complex external dependencies or webhooks required.
+- ⚡ **Zero-Config Onboarding**: An interactive CLI wizard authenticates you via a simple QR code and auto-detects your identity.
 
-**Key Security Feature**: `wa-slash-commands` contains strict owner-protection logic. Even within a public or crowded group chat, the commands will **only execute** if they are sent by the bot owner's phone number. Other participants attempting to use `/sotu` or `/pending` will be silently ignored, maintaining privacy and controlling API usage.
+## 🚀 Available Commands
 
-## Available Commands
+Type these from your phone in any chat where the bridge is running:
 
-- `/sotu` — **State of the Union**: Synthesizes the last 30 days to identify the group purpose, big picture objectives, key themes, and decisions.
-- `/pending` — **Critical Open Loops**: Scans the chat history to track ongoing initiatives, recent updates, and provides AI-synthesized "Next Steps" with identified owners.
-- `/stats` — **Team Personas**: Analyzes participant activity, labels them with distinct collaboration styles (e.g., *The Driver*, *The Reviewer*, *The Lurker*), and identifies bottlenecks.
-- `/recap` — **24h Timeline**: Extracts only the critical signals, decisions, and escalations from the past 24 hours (filtering out trivial chatter like "ok" and "done").
-- `/eli5 <topic>` — **Explain Like I'm 5**: A context-aware search engine that explains a topic discussed in the chat to a professional standard.
-- `/help` — Lists commands.
+| Command | Description | Time Window |
+| :--- | :--- | :--- |
+| `/sotu` | **State of the Union:** Identifies the group's purpose, big picture objectives, key themes, and decisions. | 30 Days |
+| `/pending` | **Critical Open Loops:** Scans history to track ongoing initiatives and outputs actionable "Next Steps" with DRIs. | 30 Days |
+| `/stats` | **Team Personas:** Analyzes participant activity and labels them with collaboration styles (e.g., *The Driver*, *The Lurker*). | 14 Days |
+| `/recap` | **24h Timeline:** Extracts only critical signals and decisions from the past 24 hours, filtering out noise. | 24 Hours |
+| `/eli5 <topic>` | **Explain Like I'm 5:** Context-aware search engine that explains a topic based strictly on what was discussed. | 30 Days |
 
-## Getting Started
+---
 
-### 1. Requirements
+## 🛠 Installation & Quick Start
 
-Ensure you are running an integration/bridge that stores messages in an SQLite database format (e.g., `messages.db` and `whatsapp.db`).
-You will also need Python 3.10+.
+**Prerequisites**: Python 3.10+ and Go 1.21+.
 
-### 2. Installation
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/sameer-hoda/wa-slash-commands.git
+   cd wa-slash-commands
+   ```
 
-Clone this repository and install the dependencies:
+2. **Install Python dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-```bash
-git clone https://github.com/yourusername/wa-slash-commands.git
-cd wa-slash-commands
-pip install -r requirements.txt
+3. **Run the interactive setup wizard:**
+   ```bash
+   python3 setup.py
+   ```
+   *The wizard will prompt you for your Gemini API key, compile the native WhatsApp bridge, and display a QR code for you to scan via "Linked Devices" in WhatsApp.*
+
+4. **Start the Bridge:**
+   ```bash
+   ./start.sh
+   ```
+   *Keep this running in a terminal session (e.g., via `tmux` or `screen`).*
+
+---
+
+## 🏗 Architecture
+
+The system is split into two seamless components:
+
+1. **The Go Bridge (`./bridge`)**: Built on the highly stable `whatsmeow` library. It maintains the WebSocket connection to WhatsApp, intercepts incoming messages, and syncs chat history into a local SQLite database (`store/whatsapp.db` & `store/messages.db`).
+2. **The Python Engine (`wacmd.py`)**: When the bridge detects a message starting with `/`, it shells out to `wacmd.py`. The Python script verifies the sender's identity, pulls necessary context from SQLite, executes a strictly typed Gemini API call, and sends the response back via the bridge's local HTTP API.
+
+```mermaid
+graph LR
+    WA[WhatsApp App] <--> |WebSocket| Go[Go Bridge whatsmeow]
+    Go --> |Logs Messages| DB[(SQLite Store)]
+    Go --> |On /command| Py[wacmd.py]
+    Py --> |Reads| DB
+    Py <--> |Analyzes| LLM[Gemini API]
+    Py --> |POST Response| Go
 ```
 
-### 3. Configuration
+## 🛡 Privacy & Security
 
-`wa-slash-commands` relies strictly on environment variables. Copy the `.env.example` file to create your own configuration:
+- **Local Storage**: All message history is stored locally in SQLite (`store/`). Nothing is sent to a cloud database.
+- **Selective Processing**: Only messages required to fulfill a specific slash command are sent to the Gemini API.
 
-```bash
-cp .env.example .env
-```
+## 📝 License
 
-Open `.env` and fill in your details:
-
-- `GEMINI_API_KEY`: Your Google Gemini API Key.
-- `OWNER_PHONE_NUMBER`: Your phone number (e.g., `919876543210`). The script will *only* respond to commands sent by this user.
-- `MESSAGES_DB_PATH`: Path to your bridge's `messages.db`.
-- `WHATSAPP_DB_PATH`: Path to your bridge's `whatsapp.db`.
-- `WA_API_URL`: The webhook URL for your bridge to send the outbound response.
-
-### 4. Running the CLI
-
-Your bridge should be configured to execute `wacmd.py` when it intercepts a slash command:
-
-```bash
-python3 wacmd.py <chat_jid> <sender_jid> "<command_text>"
-```
-
-Example usage from your bridge hook:
-```bash
-python3 wacmd.py 123456789-98765@g.us 919876543210@s.whatsapp.net "/sotu"
-```
-
-## Anti-Hallucination & AI Reliability
-
-When traversing large bodies of chat text, AI models can hallucinate or fail to return parsable structures. `wa-slash-commands` implements **Strict JSON Schema Enforcement**. We explicitly pass a rigid JSON structure directly to the Gemini API (`response_schema`). This guarantees that regardless of the chat's chaos, the output will always maintain its shape and be safely parsed by the formatting layer.
+Distributed under the MIT License. See `LICENSE` for more information.
