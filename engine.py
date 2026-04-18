@@ -29,7 +29,7 @@ _dir = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(_dir, ".env"))
 
 GEMINI_API_KEY    = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL      = "gemini-2.5-flash"
+GEMINI_MODEL      = "gemini-2.5-flash-lite"
 MESSAGES_DB_PATH  = os.getenv("MESSAGES_DB_PATH", os.path.join(_dir, "store", "messages.db"))
 WHATSAPP_DB_PATH  = os.getenv("WHATSAPP_DB_PATH", os.path.join(_dir, "store", "whatsapp.db"))
 
