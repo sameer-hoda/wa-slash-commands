@@ -90,7 +90,7 @@ def step_detect_owner():
         conn.close()
         if res and res[0]:
             full_jid = res[0]
-            # Format is usually 919967151186.0:86@s.whatsapp.net
+            # Format is usually 919876543210.0:86@s.whatsapp.net
             phone = full_jid.split('@')[0].split('.')[0].split(':')[0]
             ok(f"Detected owner: {C.BOLD}{phone}{C.RESET}")
             return phone
