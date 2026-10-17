@@ -8,6 +8,9 @@ Invoked by the Go bridge as a CLI:
 
 Features owner-protection mechanics so it only responds to the verified owner JID.
 Commands: /sotu  /pending  /stats  /recap  /eli5  /help
+
+Every answer is delivered to the owner's Me chat only (mechat.py resolution) —
+the chat the command was typed in is never written to.
 """
 
 import sys
@@ -25,6 +28,8 @@ _dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _dir)
 load_dotenv(os.path.join(_dir, ".env"), override=True)
 
+import mechat
+import engine
 from engine import (
     gemini_json, gemini_text,
     cache_read, cache_write,
@@ -33,9 +38,24 @@ from engine import (
 )
 from formatter import fmt_sotu, fmt_pending, fmt_stats, fmt_recap
 
-API_URL = os.getenv("WA_API_URL", "http://localhost:8080/api/send")
+API_URL = os.getenv("WA_API_URL", "http://127.0.0.1:8090/api/send")
 OWNER_PHONE = os.getenv("OWNER_PHONE_NUMBER", "").strip().replace("+", "")
 OWNER_JID = f"{OWNER_PHONE}@s.whatsapp.net" if OWNER_PHONE else None
+
+ANALYSIS_COMMANDS = {"/sotu", "/pending", "/stats", "/recap", "/eli5"}
+
+GEMINI_MISSING_TEXT = (
+    "⚠️ *Mosaic can't analyse right now* — the Gemini API key is missing.\n"
+    "Add `GEMINI_API_KEY` to `.env` (billing-enabled) and retry. `/help` still works."
+)
+GEMINI_FAILED_TEXT = (
+    "⚠️ *Analysis failed* — Gemini returned an error (key/quota?).\n"
+    "Nothing was analysed; the logs have the details. Try again."
+)
+
+
+def _analysis_failed(data) -> bool:
+    return bool(isinstance(data, dict) and data.get("_gemini_failed"))
 
 log_path = os.path.join(_dir, "slash_cmd.log")
 logging.basicConfig(
@@ -59,14 +79,37 @@ def _print_context_info(msgs, command):
 def send_message(jid: str, text: str) -> None:
     # Resolve @lid JIDs to @s.whatsapp.net before sending.
     send_to = resolve_send_jid(jid)
+    headers = {}
+    token = mechat.bridge_token()
+    if token:
+        headers["X-Bridge-Token"] = token
     try:
-        resp = requests.post(API_URL, json={"recipient": send_to, "message": text}, timeout=10)
+        resp = requests.post(API_URL, json={"recipient": send_to, "message": text},
+                             headers=headers, timeout=10)
         if resp.status_code == 200:
             print(f"✅ Sent to {send_to}" + (f" (resolved from {jid})" if send_to != jid else ""))
         else:
             print(f"⚠️ Send failed {resp.status_code}: {resp.text[:100]}")
     except Exception as e:
         print(f"❌ Send error: {e}")
+
+
+def send_answer(text: str) -> None:
+    """Deliver a command answer to the owner's Me chat — nowhere else.
+
+    Unresolved or unverifiable Me chat => the answer is dropped with a log
+    line. Never a guess, never a group, never the invoking chat.
+    """
+    target = mechat.get_mechat_jid()
+    if not target:
+        print("⚠️ Me chat unresolved — answer not sent anywhere.")
+        logging.error("mechat unresolved — answer dropped")
+        return
+    if not mechat.verify_mechat(target):
+        print(f"🛡️ Me chat {target} failed verification — answer dropped.")
+        logging.error(f"mechat verification failed for {target} — answer dropped")
+        return
+    send_message(target, text)
 
 
 def log_invocation(command: str, jid: str, detail: str, latency: float) -> None:
@@ -78,14 +121,14 @@ def cmd_sotu(jid: str) -> None:
     t0 = time.time()
     cached = cache_read(jid, "sotu")
     if cached:
-        send_message(jid, fmt_sotu(cached))
+        send_answer(fmt_sotu(cached))
         log_invocation("/sotu", jid, "cache hit", time.time() - t0)
         return
 
     msgs = get_messages(jid, days=30, limit=2000)
     _print_context_info(msgs, "/sotu")
     if not msgs:
-        send_message(jid, "⚠️ Not enough history for a State of the Union.")
+        send_answer("⚠️ Not enough history for a State of the Union.")
         return
 
     context = format_messages_ist(msgs)
@@ -143,10 +186,14 @@ Output ONLY valid JSON, no markdown.
         "required": ["group_purpose", "big_picture_objective", "key_themes", "recent_happenings", "key_ask"]
     }
     data = gemini_json(prompt, fallback, schema)
+    if _analysis_failed(data):
+        log_invocation("/sotu", jid, "gemini failed", time.time() - t0)
+        send_answer(GEMINI_FAILED_TEXT)
+        return
     cache_write(jid, "sotu", data)
     # Save as prior for next run
     cache_write(jid, "_sotu_prior", data)
-    send_message(jid, fmt_sotu(data))
+    send_answer(fmt_sotu(data))
     log_invocation("/sotu", jid, f"{len(data.get('top_decisions',[]))} decisions", time.time() - t0)
 
 
@@ -156,7 +203,7 @@ def cmd_pending(jid: str) -> None:
     msgs = get_messages(jid, days=30, limit=500)
     _print_context_info(msgs, "/pending")
     if not msgs:
-        send_message(jid, "⚠️ No recent messages to analyse for pending tasks.")
+        send_answer("⚠️ No recent messages to analyse for pending tasks.")
         return
 
     context = format_messages_ist(msgs)
@@ -211,8 +258,12 @@ Output ONLY valid JSON, no markdown.
         "required": ["initiatives"]
     }
     data = gemini_json(prompt, fallback, schema)
+    if _analysis_failed(data):
+        log_invocation("/pending", jid, "gemini failed", time.time() - t0)
+        send_answer(GEMINI_FAILED_TEXT)
+        return
     cache_write(jid, "pending", data)
-    send_message(jid, fmt_pending(data))
+    send_answer(fmt_pending(data))
     log_invocation("/pending", jid, f"{len(data.get('critical_items',[]))} items", time.time() - t0)
 
 
@@ -221,7 +272,7 @@ def cmd_stats(jid: str, days: int = 14) -> None:
     t0 = time.time()
     cached = cache_read(jid, "stats")
     if cached:
-        send_message(jid, fmt_stats(cached, days))
+        send_answer(fmt_stats(cached, days))
         log_invocation("/stats", jid, "cache hit", time.time() - t0)
         return
 
@@ -230,7 +281,7 @@ def cmd_stats(jid: str, days: int = 14) -> None:
     _print_context_info(msgs, "/stats")
 
     if not activity:
-        send_message(jid, f"📊 *Team Stats — Last {days} Days*\n\n_No messages found._")
+        send_answer(f"📊 *Team Stats — Last {days} Days*\n\n_No messages found._")
         return
 
     context = format_messages_ist(msgs)
@@ -286,8 +337,12 @@ Output ONLY valid JSON, no markdown.
         "required": ["participants", "group_health", "bottleneck"]
     }
     data = gemini_json(prompt, fallback, schema)
+    if _analysis_failed(data):
+        log_invocation("/stats", jid, "gemini failed", time.time() - t0)
+        send_answer(GEMINI_FAILED_TEXT)
+        return
     cache_write(jid, "stats", data)
-    send_message(jid, fmt_stats(data, days))
+    send_answer(fmt_stats(data, days))
     log_invocation("/stats", jid, f"{len(data.get('participants',[]))} participants", time.time() - t0)
 
 
@@ -297,7 +352,7 @@ def cmd_recap(jid: str) -> None:
     msgs = get_messages(jid, days=1, limit=2000)
     _print_context_info(msgs, "/recap")
     if not msgs:
-        send_message(jid, "📌 *24h Recap*\n\n_No messages in the last 24 hours._")
+        send_answer("📌 *24h Recap*\n\n_No messages in the last 24 hours._")
         return
 
     context = format_messages_ist(msgs)
@@ -339,7 +394,11 @@ Output ONLY valid JSON, no markdown.
         "required": ["events", "summary"]
     }
     data = gemini_json(prompt, fallback, schema)
-    send_message(jid, fmt_recap(data))
+    if _analysis_failed(data):
+        log_invocation("/recap", jid, "gemini failed", time.time() - t0)
+        send_answer(GEMINI_FAILED_TEXT)
+        return
+    send_answer(fmt_recap(data))
     log_invocation("/recap", jid, f"{data.get('signal_count',0)} events", time.time() - t0)
 
 
@@ -369,7 +428,7 @@ Format your response for WhatsApp:
 - Write in plain, direct language — no jargon or filler
 """
     response = gemini_text(prompt)
-    send_message(jid, response)
+    send_answer(response)
     log_invocation("/eli5", jid, f"topic={topic_str[:30]}", time.time() - t0)
 
 
@@ -387,28 +446,45 @@ HELP_TEXT = """\
 
 
 # ── Main dispatch ─────────────────────────────────────────────────────────────
-def handle_command(chat_jid: str, sender_jid: str, command_text: str) -> None:
-    # ── SECURITY CHECK: Only allow the owner's WhatsApp number to use commands ──
+def _is_owner(sender_jid: str) -> bool:
+    """One owner, both spellings (PN or LID), from the pairing store.
+
+    mechat is the single source of truth; the legacy OWNER_PHONE_NUMBER env
+    still counts when the session store is unreadable.
+    """
+    if mechat.is_owner_jid(sender_jid):
+        return True
     if OWNER_JID:
         actual_sender = resolve_send_jid(sender_jid)
-        
+
         # Strip device IDs (the :86 part) to compare the base phone number
         def base_jid(j: str) -> str:
-            if not j: return j
+            if not j:
+                return j
             parts = j.split("@")
             if len(parts) == 2:
                 return f"{parts[0].split(':')[0]}@{parts[1]}"
             return j
 
-        if base_jid(actual_sender) != base_jid(OWNER_JID):
-            print(f"[🛡️ Security] Ignoring command from non-owner: {actual_sender}")
-            return
-    else:
-        print("[⚠️ Warning] OWNER_PHONE_NUMBER not set in .env. Responding to everyone!")
+        return base_jid(actual_sender) == base_jid(OWNER_JID)
+    return False
+
+
+def handle_command(chat_jid: str, sender_jid: str, command_text: str) -> None:
+    # ── SECURITY CHECK: owner only, verified by identity — never "everyone" ──
+    if not _is_owner(sender_jid):
+        print(f"[🛡️ Security] Ignoring command from non-owner: {sender_jid}")
+        return
 
     parts = command_text.strip().split(" ", 1)
     command = parts[0].lower()
     args = parts[1].strip() if len(parts) > 1 else ""
+
+    if command in ANALYSIS_COMMANDS and not engine.ai_available():
+        print("[⚠️] GEMINI_API_KEY not set — refusing to answer as if analysis ran.")
+        logging.error(f"{command} for {chat_jid[:20]}… — no Gemini key; nothing analysed")
+        send_answer(GEMINI_MISSING_TEXT)
+        return
 
     print(f"[v2] {command} for {chat_jid}")
 
@@ -423,7 +499,7 @@ def handle_command(chat_jid: str, sender_jid: str, command_text: str) -> None:
     elif command == "/eli5":
         cmd_eli5(chat_jid, args)
     elif command == "/help":
-        send_message(chat_jid, HELP_TEXT)
+        send_answer(HELP_TEXT)
     else:
         # Unknown command — silently ignore (bridge may send non-command messages)
         pass

@@ -11,7 +11,6 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"reflect"
@@ -20,7 +19,6 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/mdp/qrterminal"
 	"go.mau.fi/whatsmeow"
 	waProto "go.mau.fi/whatsmeow/binary/proto"
 	"go.mau.fi/whatsmeow/store/sqlstore"
@@ -29,8 +27,6 @@ import (
 	waLog "go.mau.fi/whatsmeow/util/log"
 	"google.golang.org/protobuf/proto"
 )
-
-
 
 // Message represents a chat message for our client
 type Message struct {
@@ -50,12 +46,12 @@ type MessageStore struct {
 // Initialize message store
 func NewMessageStore() (*MessageStore, error) {
 	// Create directory for database if it doesn't exist
-	if err := os.MkdirAll("store", 0755); err != nil {
+	if err := os.MkdirAll(storePath(""), 0755); err != nil {
 		return nil, fmt.Errorf("failed to create store directory: %v", err)
 	}
 
 	// Open SQLite database for messages
-	db, err := sql.Open("sqlite3", "file:store/messages.db?_foreign_keys=on")
+	db, err := sql.Open("sqlite3", "file:"+storePath("messages.db")+"?_foreign_keys=on")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open message database: %v", err)
 	}
@@ -171,6 +167,18 @@ func (store *MessageStore) GetChats() (map[string]time.Time, error) {
 	}
 
 	return chats, nil
+}
+
+// LastMessageAt returns the most recent message timestamp for a chat, or "".
+func (store *MessageStore) LastMessageAt(chatJID string) string {
+	var ts time.Time
+	err := store.db.QueryRow(
+		"SELECT MAX(timestamp) FROM messages WHERE chat_jid = ?", chatJID,
+	).Scan(&ts)
+	if err != nil || ts.IsZero() {
+		return ""
+	}
+	return ts.Format("2006-01-02 15:04:05")
 }
 
 // Extract text content from a message
@@ -472,35 +480,8 @@ func handleMessage(client *whatsmeow.Client, messageStore *MessageStore, msg *ev
 
 		// Hotword Handler
 		if strings.HasPrefix(content, "/") {
-			go func() {
-				// Get absolute path to the script
-				scriptPath := "wacmd.py"
-				if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
-					// Try parent directory if not found in current (for when run from bridge/ folder)
-					scriptPath = "../wacmd.py"
-				}
-				
-				absPath, err := filepath.Abs(scriptPath)
-				if err != nil {
-				        logger.Errorf("Failed to resolve script path: %v", err)
-				        return
-				}
-
-				// Log that we are triggering the handler
-				logger.Infof("Triggering hotword handler for command: %s using script: %s", content, absPath)
-
-				senderJID := msg.Info.Sender.String()
-				cmd := exec.Command("python3", absPath, chatJID, senderJID, content)
-				output, err := cmd.CombinedOutput()
-				if err != nil {
-					logger.Errorf("Hotword handler failed: %v, Output: %s", err, string(output))
-				} else {
-					// Only log output if there is any significant output
-					if len(output) > 0 {
-						logger.Infof("Hotword handler output: %s", string(output))
-					}
-				}
-			}()
+			senderJID := msg.Info.Sender.String()
+			go runPython("wacmd.py", chatJID, senderJID, content)
 		}
 	}
 }
@@ -597,7 +578,7 @@ func downloadMedia(client *whatsmeow.Client, messageStore *MessageStore, message
 	var err error
 
 	// First, check if we already have this file
-	chatDir := fmt.Sprintf("store/%s", strings.ReplaceAll(chatJID, ":", "_"))
+	chatDir := storePath(strings.ReplaceAll(chatJID, ":", "_"))
 	localPath := ""
 
 	// Get media info from the database
@@ -710,10 +691,11 @@ func extractDirectPathFromURL(url string) string {
 	return "/" + pathPart
 }
 
-// Start a REST API server to expose the WhatsApp client functionality
-func startRESTServer(client *whatsmeow.Client, messageStore *MessageStore, port int) {
+// Start the internal REST API (loopback only, token-gated) used by the
+// python command engine. The public setup page lives in setup_web.go.
+func startInternalServer(client *whatsmeow.Client, messageStore *MessageStore) {
 	// Handler for sending messages
-	http.HandleFunc("/api/send", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/api/send", requireToken(func(w http.ResponseWriter, r *http.Request) {
 		// Only allow POST requests
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -756,10 +738,10 @@ func startRESTServer(client *whatsmeow.Client, messageStore *MessageStore, port 
 			Success: success,
 			Message: message,
 		})
-	})
+	}))
 
 	// Handler for downloading media
-	http.HandleFunc("/api/download", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/api/download", requireToken(func(w http.ResponseWriter, r *http.Request) {
 		// Only allow POST requests
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -807,16 +789,16 @@ func startRESTServer(client *whatsmeow.Client, messageStore *MessageStore, port 
 			Filename: filename,
 			Path:     path,
 		})
-	})
+	}))
 
 	// Start the server
-	serverAddr := fmt.Sprintf(":%d", port)
-	fmt.Printf("Starting REST API server on %s...\n", serverAddr)
+	serverAddr := "127.0.0.1:8090"
+	fmt.Printf("Internal API (loopback, token-gated) on %s...\n", serverAddr)
 
 	// Run server in a goroutine so it doesn't block
 	go func() {
 		if err := http.ListenAndServe(serverAddr, nil); err != nil {
-			fmt.Printf("REST API server error: %v\n", err)
+			fmt.Printf("Internal API server error: %v\n", err)
 		}
 	}()
 }
@@ -829,13 +811,16 @@ func main() {
 	// Create database connection for storing session data
 	dbLog := waLog.Stdout("Database", "INFO", true)
 
+	initAuth()
+	initToken()
+
 	// Create directory for database if it doesn't exist
-	if err := os.MkdirAll("store", 0755); err != nil {
+	if err := os.MkdirAll(storePath(""), 0755); err != nil {
 		logger.Errorf("Failed to create store directory: %v", err)
 		return
 	}
 
-	container, err := sqlstore.New(context.Background(), "sqlite3", "file:store/whatsapp.db?_foreign_keys=on", dbLog)
+	container, err := sqlstore.New(context.Background(), "sqlite3", "file:"+storePath("whatsapp.db")+"?_foreign_keys=on", dbLog)
 	if err != nil {
 		logger.Errorf("Failed to connect to database: %v", err)
 		return
@@ -882,72 +867,35 @@ func main() {
 
 		case *events.Connected:
 			logger.Infof("Connected to WhatsApp")
+			if client.Store.ID != nil {
+				scheduleResolve(logger)
+			}
 
 		case *events.LoggedOut:
 			logger.Warnf("Device logged out, please scan QR code to log in again")
+			go startPairing(client, logger)
 		}
 	})
 
-	// Create channel to track connection success
-	connected := make(chan bool, 1)
+	startServers(client, messageStore, logger)
 
-	// Connect to WhatsApp
 	if client.Store.ID == nil {
-		// No ID stored, this is a new client, need to pair with phone
-		qrChan, _ := client.GetQRChannel(context.Background())
-		err = client.Connect()
-		if err != nil {
-			logger.Errorf("Failed to connect: %v", err)
-			return
-		}
-
-		// Print QR code for pairing with phone
-		for evt := range qrChan {
-			if evt.Event == "code" {
-				fmt.Println("\nScan this QR code with your WhatsApp app:")
-				qrterminal.GenerateHalfBlock(evt.Code, qrterminal.L, os.Stdout)
-			} else if evt.Event == "success" {
-				connected <- true
-				break
-			}
-		}
-
-		// Wait for connection
-		select {
-		case <-connected:
-			fmt.Println("\nSuccessfully connected and authenticated!")
-		case <-time.After(3 * time.Minute):
-			logger.Errorf("Timeout waiting for QR code scan")
-			return
-		}
+		go startPairing(client, logger)
 	} else {
-		// Already logged in, just connect
-		err = client.Connect()
-		if err != nil {
+		if err := client.Connect(); err != nil {
 			logger.Errorf("Failed to connect: %v", err)
 			return
 		}
-		connected <- true
+		logger.Infof("Connected with stored session")
 	}
-
-	// Wait a moment for connection to stabilize
-	time.Sleep(2 * time.Second)
-
-	if !client.IsConnected() {
-		logger.Errorf("Failed to establish stable connection")
-		return
-	}
-
-	fmt.Println("\n✓ Connected to WhatsApp! Type 'help' for commands.")
-
-	// Start REST API server
-	startRESTServer(client, messageStore, 8080)
+	go func() { time.Sleep(5 * time.Second); scheduleResolve(logger) }()
+	go func() { time.Sleep(65 * time.Second); scheduleResolve(logger) }()
 
 	// Create a channel to keep the main goroutine alive
 	exitChan := make(chan os.Signal, 1)
 	signal.Notify(exitChan, syscall.SIGINT, syscall.SIGTERM)
 
-	fmt.Println("REST server is running. Press Ctrl+C to disconnect and exit.")
+	fmt.Println("Mosaic bridge is running. Press Ctrl+C to disconnect and exit.")
 
 	// Wait for termination signal
 	<-exitChan
@@ -1180,6 +1128,7 @@ func handleHistorySync(client *whatsmeow.Client, messageStore *MessageStore, his
 	}
 
 	fmt.Printf("History sync complete. Stored %d messages.\n", syncedCount)
+	scheduleResolve(logger)
 }
 
 // Request history sync from the server

@@ -9,18 +9,20 @@
   </p>
 </div>
 
-`wa-slash-commands` is a standalone, intelligent WhatsApp CLI integration that turns any WhatsApp chat into a productive workspace. It leverages a native Go bridge (`whatsmeow`) and the Google Gemini API to analyze conversations, extract rich insights, and respond to `/slash` commands directly in the chat.
+`wa-slash-commands` is a standalone, intelligent WhatsApp CLI integration that turns any WhatsApp chat into a productive workspace. It leverages a native Go bridge (`whatsmeow`) and the Google Gemini API to analyze conversations, extract rich insights, and answer `/slash` commands — **every answer delivered privately to your own Me chat** (self-chat), never into the group you typed it in.
 
 ## ✨ Features
 
 - 🔒 **Owner-Protected**: Strict security checks ensure commands are *only* executed when sent by your personal phone number. Other group members typing `/commands` are silently ignored.
+- 🙋 **Me-chat only**: Every answer lands in your own "Message yourself" chat. The source chat is never written to — no posts, no deletions, no traces that you use a bot.
 - 🧠 **AI-Powered Synthesis**: Powered by Gemini 1.5 with Strict JSON Schema Enforcement to guarantee structured, non-hallucinated responses.
 - 📦 **Self-Contained**: Comes with an embedded, auto-compiling Go bridge. No complex external dependencies or webhooks required.
-- ⚡ **Zero-Config Onboarding**: An interactive CLI wizard authenticates you via a simple QR code and auto-detects your identity.
+- ⚡ **Zero-Config Onboarding**: A web setup page shows the QR code, a Gemini-key validity tick, and the resolved Me chat. Nothing to configure in a terminal.
 
 ## 🚀 Available Commands
 
-Type these from your phone in any chat where the bridge is running:
+Type these from your phone in **any** chat. The answer always arrives in your **Me chat**
+(Message yourself) — the chat you typed in stays untouched:
 
 | Command | Description | Time Window |
 | :--- | :--- | :--- |
@@ -61,13 +63,37 @@ curl -sL https://raw.githubusercontent.com/sameer-hoda/wa-slash-commands/master/
    ```bash
    python3 setup.py
    ```
-   *The wizard will prompt you for your Gemini API key, compile the native WhatsApp bridge, and display a QR code for you to scan via "Linked Devices" in WhatsApp.*
+   *The wizard will prompt you for your Gemini API key and compile the native WhatsApp bridge. You can also just set `GEMINI_API_KEY` in `.env`.*
 
 4. **Start the Bridge:**
    ```bash
    ./start.sh
    ```
-   *Keep this running in a terminal session (e.g., via `tmux` or `screen`).*
+
+5. **Open the setup page and link your phone:**
+   ```
+   http://localhost:8081/
+   ```
+   Log in with the setup password (from `SETUP_PASSWORD`, or printed in the logs), scan
+   the QR via **Linked devices → Link a device**, and within seconds the page shows
+   `Connected as +91… · Me chat: …`. A one-time welcome lands in that Me chat — that's
+   your confirmation that answers are routed correctly.
+
+---
+
+## ☁️ Deploy on Railway
+
+One container, one volume, five minutes:
+
+1. Deploy this repo with the Railway button or `railway up` (Dockerfile included;
+   `railway.toml` keeps it single-instance — never scale above one replica).
+2. Mount a volume at **`/data`** — **required**: pairing, message history and
+   Me-chat state live there, and without it you re-scan the QR on every deploy.
+3. Set variables: `GEMINI_API_KEY` (billing-enabled), optionally `SETUP_PASSWORD`, `TZ`.
+   No `SETUP_PASSWORD`? One is generated and printed in the deploy logs.
+4. Open the service URL, log in, scan the QR. The page shows
+   `Connected as +91… · Me chat: …` and a welcome lands in your Me chat.
+   Health probe: `/health`.
 
 ---
 
@@ -102,7 +128,7 @@ Additionally, `wacmd.py` will print detailed logs to your terminal (payload size
 The system is split into two seamless components:
 
 1. **The Go Bridge (`./bridge`)**: Built on the highly stable `whatsmeow` library. It maintains the WebSocket connection to WhatsApp, intercepts incoming messages, and syncs chat history into a local SQLite database (`store/whatsapp.db` & `store/messages.db`).
-2. **The Python Engine (`wacmd.py`)**: When the bridge detects a message starting with `/`, it shells out to `wacmd.py`. The Python script verifies the sender's identity, pulls necessary context from SQLite, executes a strictly typed Gemini API call, and sends the response back via the bridge's local HTTP API.
+2. **The Python Engine (`wacmd.py`)**: When the bridge detects a message starting with `/`, it shells out to `wacmd.py`. The Python script verifies the sender's identity (PN or LID form), pulls necessary context from SQLite, executes a strictly typed Gemini API call, and delivers the answer via the bridge's loopback, token-gated send API — **to the resolved Me chat only**. `mechat.py` resolves which chat that is at launch and after every reconnect; unresolved means no send anywhere.
 
 ```mermaid
 graph LR
@@ -116,8 +142,16 @@ graph LR
 
 ## 🛡 Privacy & Security
 
+- **Me-chat only**: Answers never post into groups and nothing is ever deleted. The chat where you typed a command receives zero writes.
 - **Local Storage**: All message history is stored locally in SQLite (`store/`). Nothing is sent to a cloud database.
 - **Selective Processing**: Only messages required to fulfill a specific slash command are sent to the Gemini API.
+- **Locked down**: the send API is loopback-only and token-gated; the web setup page sits behind a generated password.
+
+## 🧪 Tests
+
+```bash
+python3 -m pytest tests/ -q   # offline: no network, no keys needed
+```
 
 ## 📝 License
 

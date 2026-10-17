@@ -6,13 +6,18 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$DIR"
 
 if [ ! -f "bridge/wa-bridge" ]; then
-    echo "❌ Error: Bridge binary not found. Please run 'python3 setup.py' first."
-    exit 1
+    echo "🔨 Bridge binary not found — building it now (needs Go 1.25+)…"
+    (cd bridge && go build -o wa-bridge .) || {
+        echo "❌ Build failed. Install Go first: https://go.dev/dl/"
+        exit 1
+    }
 fi
 
-if [ ! -d "store" ]; then
-    echo "⚠️ Warning: 'store' directory not found. You might need to authenticate."
+if [ ! -d "${STORE_DIR:-store}" ]; then
+    echo "⚠️ Warning: '${STORE_DIR:-store}' directory not found. You might need to authenticate."
 fi
 
-echo "🚀 Starting WhatsApp Slash Command Bridge..."
+echo "🚀 Starting Mosaic bridge…"
+echo "   Setup page: http://localhost:${PORT:-8081}/  (health: /health)"
+echo "   The setup password prints below (or set SETUP_PASSWORD in .env)."
 ./bridge/wa-bridge

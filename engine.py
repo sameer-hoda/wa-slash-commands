@@ -63,9 +63,16 @@ else:
     logging.error("GEMINI_API_KEY not set — AI will be unavailable.")
 
 
+def ai_available() -> bool:
+    """True when a Gemini model is configured (a usable key was present)."""
+    return _model is not None
+
+
 def gemini_json(prompt: str, fallback: dict, schema: Optional[dict] = None) -> dict:
     """Call Gemini expecting a JSON response. Retries once on parse failure.
-    Returns fallback dict if both attempts fail."""
+    Returns fallback dict if both attempts fail — marked with
+    ``_gemini_failed`` so callers can surface a real error instead of faking
+    an empty analysis."""
     if not _model:
         return fallback
     
@@ -88,6 +95,8 @@ def gemini_json(prompt: str, fallback: dict, schema: Optional[dict] = None) -> d
             print(f"❌ [Gemini API] Error: {e}")
             logging.error(f"Gemini call error (attempt {attempt+1}): {e}")
             break
+    if isinstance(fallback, dict):
+        return {**fallback, "_gemini_failed": True}
     return fallback
 
 
@@ -155,13 +164,30 @@ def utc_to_ist(dt):  # datetime -> datetime
 
 
 def parse_ts(ts) -> Optional[datetime]:
-    """Parse a SQLite timestamp (string or datetime) into a UTC datetime."""
+    """Parse a SQLite timestamp (string or datetime) into a naive UTC datetime.
+
+    Handles the Go bridge's RFC3339-style values with a UTC offset
+    ("2026-10-17 11:39:31+05:30"): the offset is honored, so utc_to_ist()
+    renders the real IST time instead of shifting twice.
+    """
     if isinstance(ts, datetime):
         return ts
     if isinstance(ts, str):
         try:
-            clean = ts.replace("T", " ").split("+")[0].split(".")[0].strip()
-            return datetime.strptime(clean, "%Y-%m-%d %H:%M:%S")
+            clean = ts.replace("T", " ").strip()
+            if clean.endswith("Z"):
+                clean = clean[:-1].strip()
+            offset = None
+            m = re.search(r"\s*([+-])(\d{2}):?(\d{2})$", clean)
+            if m:
+                sign = 1 if m.group(1) == "+" else -1
+                offset = sign * timedelta(hours=int(m.group(2)), minutes=int(m.group(3)))
+                clean = clean[: m.start()].strip()
+            base = clean.split(".")[0].strip()
+            dt = datetime.strptime(base, "%Y-%m-%d %H:%M:%S")
+            if offset is not None:
+                dt = dt - offset
+            return dt
         except ValueError:
             return None
     if isinstance(ts, (int, float)):

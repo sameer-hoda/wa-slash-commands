@@ -34,3 +34,7 @@ bridge/.tmpcgo/
 # Local cache
 cache/
 bridge/.gotmp/
+.pytest_cache/
+bridge/whatsapp-client
+sandbox/data/
+sandbox/outputs/

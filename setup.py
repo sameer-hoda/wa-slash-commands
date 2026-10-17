@@ -120,7 +120,7 @@ def _find_bridge_binary():
     if os.path.isdir(bridge_dir) and os.path.isfile(os.path.join(bridge_dir, "main.go")):
         info("Bridge binary not found. Compiling from source...")
         try:
-            subprocess.run(["go", "build", "-o", "wa-bridge", "main.go"], cwd=bridge_dir, check=True)
+            subprocess.run(["go", "build", "-o", "wa-bridge", "."], cwd=bridge_dir, check=True)
             ok("Bridge compiled successfully.")
             return binary_path
         except FileNotFoundError:
