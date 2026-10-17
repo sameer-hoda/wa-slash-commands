@@ -79,6 +79,25 @@ history, nothing to re-scan. Watch the first boot after a big release once.
 | pairing lost after deploy | volume missing or mounted somewhere other than `/data` |
 | locked out of setup page | set `SETUP_PASSWORD` and redeploy (or read the generated one in logs) |
 | want a clean slate | setup page → **Unlink** (re-scan QR); for a full wipe, delete the volume |
+| build fails: `docker VOLUME … not supported` | Railway's builder rejects `VOLUME` — attach a Railway Volume instead (the repo's Dockerfile already does it this way) |
+| build fails: `go.mod requires go >= 1.26` | the builder image must be `golang:1.26-bookworm` or newer |
+
+<details>
+<summary>Verified with Railway CLI v5 (init → deploy → live checks)</summary>
+
+```sh
+railway init --name <project>
+railway add --service app
+railway volume add --mount-path /data
+railway variable set --service app "GEMINI_API_KEY=…" "SETUP_PASSWORD=…" "TZ=Asia/Kolkata"
+railway up --service app            # builds the Dockerfile, deploys
+railway domain --service app        # public URL
+```
+
+Checked live: `/health` → 200, `/` → setup page, `/setup/state` → 401 before login,
+login + authed state shows `gemini_key: "valid"` and a scannable QR, deploys healthy
+with the volume attached and `numReplicas = 1`.
+</details>
 
 ## Publish it as a one-click template (maintainer)
 
