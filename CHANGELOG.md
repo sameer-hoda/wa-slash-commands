@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 ## [2.0.0] - 2026-10-17
 
 ### Added
+- **`/pending` ships the ledger engine (`ledger.py`)**: open loops by *owner* — what
+  everyone asked the owner for and vice versa, since when, chased how many times, what's
+  overdue. Two model samples are unioned and validated in code (cited transcript numbers
+  only); due dates and the overdue ⚠️ flag are computed from the cited messages, never
+  hallucinated. Default model: `gemini-2.5-flash-lite` (accuracy parity with larger
+  models, ~20× faster).
+- **`sandbox/`** — the `/pending` approach lab: per-chat context dumps and a CLI runner
+  (`python3 sandbox/run.py --approach ledger --pulse`) with digest/chrono/two-pass/ledger
+  strategies for iterating before production.
 - **Me-chat delivery (`mechat.py`)**: every command answer (including `/help`) is now delivered to the owner's Me chat (self-chat) — the chat the command was typed in is never written to. Resolution order: `MECHAT_JID` env → pairing store (PN + LID) → freshest self-chat in `messages.db`; unresolved means no send anywhere, loudly logged.
 - **Web setup page (Go bridge)**: QR code as auto-refreshing PNG, Gemini-key validity tick, connected view (`Connected as +91… · Me chat: … · last message N min ago`), Unlink button. Behind `SETUP_PASSWORD` (generated + printed in logs when unset).
 - **Launch resolver hook**: on connect / reconnect / after history sync the bridge runs `python3 mechat.py --resolve --welcome`; a one-time welcome lands in the Me chat.

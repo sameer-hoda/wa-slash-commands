@@ -25,6 +25,10 @@ bridge/wa-bridge-*
 .DS_Store
 Thumbs.db
 
+# Internal working notes (kept locally, not part of the product)
+context_doc.md
+project_manual.md
+
 # Go Build caches
 .gocache/
 .tmpcgo/
