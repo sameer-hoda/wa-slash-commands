@@ -89,8 +89,6 @@ curl -sL https://raw.githubusercontent.com/sameer-hoda/wa-slash-commands/master/
 
 ## ☁️ Deploy on Railway
 
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template?template=https://github.com/sameer-hoda/wa-slash-commands)
-
 **You need:** a free [Railway account](https://railway.com) and a
 [Gemini API key](https://aistudio.google.com/apikey) (billing-enabled project).
 
@@ -112,10 +110,15 @@ Re-run the same command anytime to update; your WhatsApp pairing is kept.
 
 ### Other ways
 
-The button above, the dashboard, or the CLI step by step — see
-**[docs/RAILWAY.md](docs/RAILWAY.md)**. Whichever you use, the `/data` volume is
-**required** (it holds your pairing and history) and the service must stay at
-**one replica**.
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template?template=https%3A%2F%2Fgithub.com%2Fsameer-hoda%2Fwa-slash-commands)
+
+*The button auto-loads this repo only after our Railway template is published
+(see [docs/RAILWAY.md](docs/RAILWAY.md)); if it opens the template marketplace
+instead, use the one-command deploy above or the dashboard steps in
+[docs/RAILWAY.md](docs/RAILWAY.md).*
+
+Whichever you use, the `/data` volume is **required** (it holds your pairing and
+history) and the service must stay at **one replica**.
 
 ---
 

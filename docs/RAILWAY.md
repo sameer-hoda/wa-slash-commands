@@ -3,7 +3,11 @@
 One container, one volume, ~5 minutes. After this you type `/pending` in any
 WhatsApp group and the answer lands in your Me chat.
 
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template?template=https://github.com/sameer-hoda/wa-slash-commands)
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template?template=https%3A%2F%2Fgithub.com%2Fsameer-hoda%2Fwa-slash-commands)
+
+> The button auto-loads this repo only after the Railway template is published.
+> If it opens the **template marketplace** instead, use Option A (one command)
+> or Option C (dashboard) below — both fully work today.
 
 **You need:** a free [Railway account](https://railway.com) and a
 [Gemini API key](https://aistudio.google.com/apikey) from a billing-enabled project.
@@ -70,11 +74,16 @@ Open the printed URL and continue at **4. First boot / pairing**.
 
 ## 1. Deploy the service
 
-- **Button / template:** click the button above, pick your account, deploy.
-- **From GitHub:** Railway → New Project → Deploy from GitHub repo →
-  `sameer-hoda/wa-slash-commands`.
+**Dashboard, click by click** (works today — no template needed):
 
-Then do steps 2–3 below in the dashboard.
+1. [railway.com](https://railway.com) → **New Project** → **Deploy from GitHub repo**
+   → pick `sameer-hoda/wa-slash-commands` (authorize GitHub access the first time).
+2. Railway starts building. Open the service → **Settings → Volumes → New volume**,
+   mount path **`/data`**. (Do this before you use the bot — state must live there.)
+3. Service → **Variables** → add `GEMINI_API_KEY` (and optionally `SETUP_PASSWORD`,
+   `TZ=Asia/Kolkata`).
+4. **Settings → Networking → Generate Domain**, then open it and continue at
+   **[4. First boot / pairing](#4-first-boot--pairing)**.
 
 Railway reads `railway.toml`: Docker builder, healthcheck `/health`, restart on
 failure, `numReplicas = 1`. Build takes a few minutes the first time (Go bridge
@@ -170,17 +179,18 @@ with the volume attached and `numReplicas = 1`.
 
 ## Publish it as a one-click template (maintainer)
 
-The README button currently opens Railway's "deploy this repo" flow, which works
-today. To make it a true one-click template (pre-filled variables + volume):
+Railway's `?template=<repo>` link only auto-loads a **published** template —
+before that, the button opens the marketplace. To make it truly one-click:
 
-1. Deploy your own working instance first (steps above).
+1. Deploy your own working instance first (Option A or C above).
 2. Project → **Share → Create Template** (older UI: Settings → Generate Template).
 3. In the template editor:
    - Description + README: paste the first-boot steps from this file.
    - Variables: `GEMINI_API_KEY` (secret, required), `SETUP_PASSWORD` (secret),
      `TZ` default `Asia/Kolkata`.
    - Attach the `/data` volume configuration.
-4. Publish, then swap the button link in `README.md` and this file from
-   `railway.com/new/template?template=…` to `https://railway.com/template/<id>`.
+4. Publish, then swap the button link in `README.md` and at the top of this file
+   from `railway.com/new/template?template=…` to
+   `https://railway.com/template/<id>`.
 
-That link is what turns "5 careful steps" into "press button, scan QR".
+That link is what turns "run one command" into "click, scan QR".
