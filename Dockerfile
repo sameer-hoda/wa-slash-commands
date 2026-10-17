@@ -1,5 +1,5 @@
 # ── build the Go bridge ─────────────────────────────────────────────
-FROM golang:1.25-bookworm AS gobuild
+FROM golang:1.26-bookworm AS gobuild
 WORKDIR /src/bridge
 COPY bridge/go.mod bridge/go.sum ./
 RUN go mod download
