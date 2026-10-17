@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **New README visual language** — light, Apple-keynote-style hero, problem, bento,
+  showcase and setup images (each with a `prefers-color-scheme` dark variant on
+  `#0D1117`), all built from one story (same group, one morning, one set of tasks) and
+  exported as WebP under 60 KB.
+- Problem-first page structure: **The problem** (unread overload + asks dying in the
+  scroll), **What it does** bento, compact **Built to be trusted** row, App-Store-style
+  **Show me** panels composited two rows × three, and a 1-2-3 setup strip above the
+  Railway steps.
+- 312-unread tagline ("312 unread messages. 3 things you actually owe. One command to
+  find them."); badges move under the deploy button.
+
+### Removed
+- The six dark-mode chat screenshots and the old hero (`assets/*.jpg`) — replaced by
+  `assets/*-v2.webp` (new filenames to defeat GitHub's image-proxy cache). The dark
+  banner remains as the repository **social preview** (`assets/social-cover.png`).
+
+## [2.0.1] - 2026-10-17
+
+### Added
 - **Answers name the group they analyzed** — `/sotu`, `/stats` and `/recap` titles now
   include the chat name (e.g. `📊 *Team Stats — Last 14 Days — Launch Squad*`), matching
   `/pending` and `/eli5`; `/eli5` drops the cute "ELI30" prefix for a plain

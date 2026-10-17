@@ -1,8 +1,13 @@
 <div align="center">
 
-<img src="assets/hero.jpg" alt="Type a command in any chat — the answer lands privately in your own chat" width="100%">
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/hero-v2-dark.webp">
+  <img src="assets/hero-v2.webp" width="100%" alt="Type a command in any group — the private answer lands in your own chat; the group sees nothing back">
+</picture>
+</p>
 
-<br>
+<h3><strong>312 unread messages. 3 things you actually owe. One command to find them.</strong></h3>
 
 <a href="https://railway.com/deploy/wa-slash-commands"><img src="https://railway.com/button.svg" alt="Deploy on Railway" height="44"></a>
 
@@ -13,74 +18,73 @@
 <img alt="License MIT" src="https://img.shields.io/badge/License-MIT-green.svg">
 <a href="https://github.com/sameer-hoda/wa-slash-commands/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/sameer-hoda/wa-slash-commands/actions/workflows/ci.yml/badge.svg"></a>
 
-<br>
-
-**A chief of staff for your WhatsApp groups.**
-Type `/pending` in any WhatsApp group. Get who-owes-what, privately, in your own chat —
-plus `/sotu`, `/stats`, `/recap`, `/eli5`. The group never sees a thing.
-
 </div>
 
 ---
 
-## Why you want this
+## The problem
 
-You are in ten group chats. Somewhere in there are the things you actually owe people —
-and the things they owe you. Scrolling back to find them is hopeless. wa-slash-commands
-reads the room for you:
+**Groups move faster than you can read.** You open *Launch Squad* to **312 unread**.
+Somewhere in there is the one thing someone needs from you by Tuesday — but WhatsApp's
+message search can only find words you already remember. It can't tell you what's still
+owed, by whom, or since when.
 
-- **Know what you owe — and what's owed to you.** `/pending` turns the last week into a
-  clean list: every open ask, since when, chased how many times, what's overdue. Dates
-  come from code, never invented by a model.
-- **Invisible.** Answers land in your *Me chat* ("Message yourself") — no posts, no
-  deletions, no trace in the group. Others can type commands all day; only your phone
-  unlocks them.
-- **Yours only.** Message history stays in SQLite on your machine or volume; each command
-  sends only the message text it needs to the Gemini API, nothing else.
-- **Deploys in three minutes.** One container — a Go bridge for WhatsApp, a Python
-  engine, a tiny web setup page — on
-  [Railway](https://railway.com/deploy/wa-slash-commands) with one click.
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/problem-v2-dark.webp">
+  <img src="assets/problem-v2.webp" width="100%" alt="312 unread messages — where do you even start? Asked last week — never answered">
+</picture>
+</p>
+
+**Asks die in the scroll.** "Can you send the deck by Monday?" got two 👍 and was never
+seen again — last week's asks buried under hundreds of messages. Nobody owns it, nobody
+chases it, and it surfaces only when it's already late.
+
+wa-slash-commands is one command that reads the room for you.
+
+## What it does
+
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/bento-v2-dark.webp">
+  <img src="assets/bento-v2.webp" width="100%" alt="/pending, /recap, /sotu and /stats — one command in, a private answer out, nothing posted to the group">
+</picture>
+</p>
+
+## Built to be trusted
+
+- **Invisible** — answers land in your *Me chat*; the group sees only what you typed.
+- **Honest AI** — dates and chase counts are computed in code, never invented by the model.
+- **Fails loud** — if Gemini is down, you get an explicit error, never a fake "all clear".
+- **Self-hosted** — history in your own SQLite; each command sends only the message text
+  it needs to the Gemini API. No external database, no telemetry.
 
 ## Show me
 
-<div align="center">
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/showcase-1-dark.webp">
+  <img src="assets/showcase-1.webp" width="100%" alt="Type it in any group — nobody sees a reply. Find what's owed — who to chase, how often, what's overdue. Skip the 312 unread — last 24h, decisions only">
+</picture>
+</p>
 
-<table>
-  <tr>
-    <td align="center" width="33%">
-      <img src="assets/group.jpg" width="300" alt="A group chat where /pending is typed">
-      <br><sub><b>Type it in the group</b> — members see only your command</sub>
-    </td>
-    <td align="center" width="33%">
-      <img src="assets/pending.jpg" width="300" alt="/pending answer in the Me chat">
-      <br><sub><b>/pending</b> — who to chase, chases, overdue</sub>
-    </td>
-    <td align="center" width="33%">
-      <img src="assets/sotu.jpg" width="300" alt="/sotu answer in the Me chat">
-      <br><sub><b>/sotu</b> — purpose, objective, themes of the group</sub>
-    </td>
-  </tr>
-  <tr>
-    <td align="center" width="33%">
-      <img src="assets/stats.jpg" width="300" alt="/stats answer in the Me chat">
-      <br><sub><b>/stats</b> — who does what, group health</sub>
-    </td>
-    <td align="center" width="33%">
-      <img src="assets/recap.jpg" width="300" alt="/recap answer in the Me chat">
-      <br><sub><b>/recap</b> — the last 24 hours, decisions only</sub>
-    </td>
-    <td align="center" width="33%">
-      <img src="assets/eli5.jpg" width="300" alt="/eli5 answer in the Me chat">
-      <br><sub><b>/eli5 &lt;topic&gt;</b> — explain something using the group's own context</sub>
-    </td>
-  </tr>
-</table>
-
-</div>
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/showcase-2-dark.webp">
+  <img src="assets/showcase-2.webp" width="100%" alt="Know what this group is for — purpose, objective, themes. See who's carrying it — activity and styles. Catch up on any thread — explained from the group's own messages">
+</picture>
+</p>
 
 *Illustrative screenshots built with fictional data — no real chats are shown.*
 
 ## Start on Railway (recommended, ~3 minutes)
+
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/setup-v2-dark.webp">
+  <img src="assets/setup-v2.webp" width="100%" alt="Live in about three minutes: 1 Deploy, 2 Link your phone, 3 Type /pending">
+</picture>
+</p>
 
 1. Hit **Deploy on Railway** (button above) — the template asks for exactly two things:
    your `GEMINI_API_KEY` and a `SETUP_PASSWORD`. Nothing is baked in.
