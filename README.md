@@ -9,7 +9,7 @@
   </p>
 
   <p>
-    <a href="https://railway.com/new/template?template=https://github.com/sameer-hoda/wa-slash-commands">
+    <a href="https://railway.com/deploy/wa-slash-commands">
       <img src="https://railway.com/button.svg" alt="Deploy on Railway" height="40">
     </a>
   </p>
@@ -110,11 +110,12 @@ Re-run the same command anytime to update; your WhatsApp pairing is kept.
 
 ### Other ways
 
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template?template=https%3A%2F%2Fgithub.com%2Fsameer-hoda%2Fwa-slash-commands)
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/wa-slash-commands)
 
-*The button auto-loads this repo only after our Railway template is published
-(see [docs/RAILWAY.md](docs/RAILWAY.md)); if it opens the template marketplace
-instead, use the one-command deploy above or the dashboard steps in
+*The button opens the published Railway template (`wa-slash-commands`): the
+`/data` volume is preconfigured and you'll be asked for your own
+`GEMINI_API_KEY`, `SETUP_PASSWORD` and `TZ` — nothing is baked in. Terminal
+users can prefer the one-command deploy above or the step-by-step in
 [docs/RAILWAY.md](docs/RAILWAY.md).*
 
 Whichever you use, the `/data` volume is **required** (it holds your pairing and

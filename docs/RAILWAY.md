@@ -3,11 +3,11 @@
 One container, one volume, ~5 minutes. After this you type `/pending` in any
 WhatsApp group and the answer lands in your Me chat.
 
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template?template=https%3A%2F%2Fgithub.com%2Fsameer-hoda%2Fwa-slash-commands)
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/wa-slash-commands)
 
-> The button auto-loads this repo only after the Railway template is published.
-> If it opens the **template marketplace** instead, use Option A (one command)
-> or Option C (dashboard) below — both fully work today.
+> The button opens the **published template** `wa-slash-commands`: the `/data`
+> volume is preconfigured, and you'll be asked for your own `GEMINI_API_KEY`,
+> `SETUP_PASSWORD` and `TZ` at deploy time. Nothing is hardcoded.
 
 **You need:** a free [Railway account](https://railway.com) and a
 [Gemini API key](https://aistudio.google.com/apikey) from a billing-enabled project.
@@ -177,20 +177,27 @@ login + authed state shows `gemini_key: "valid"` and a scannable QR, deploys hea
 with the volume attached and `numReplicas = 1`.
 </details>
 
-## Publish it as a one-click template (maintainer)
+## The Railway template (published)
 
-Railway's `?template=<repo>` link only auto-loads a **published** template —
-before that, the button opens the marketplace. To make it truly one-click:
+The one-click template is live at **https://railway.com/deploy/wa-slash-commands**
+(marketplace: search "wa-slash-commands"). It carries:
 
-1. Deploy your own working instance first (Option A or C above).
-2. Project → **Share → Create Template** (older UI: Settings → Generate Template).
-3. In the template editor:
-   - Description + README: paste the first-boot steps from this file.
-   - Variables: `GEMINI_API_KEY` (secret, required), `SETUP_PASSWORD` (secret),
-     `TZ` default `Asia/Kolkata`.
-   - Attach the `/data` volume configuration.
-4. Publish, then swap the button link in `README.md` and at the top of this file
-   from `railway.com/new/template?template=…` to
-   `https://railway.com/template/<id>`.
+- the GitHub repo as the service source (Railway builds the Dockerfile),
+- the `/data` volume, attached automatically,
+- three **required prompts with no values**: `GEMINI_API_KEY`, `SETUP_PASSWORD`, `TZ`.
 
-That link is what turns "run one command" into "click, scan QR".
+Users type their own key and password into the deploy form — no secrets exist in
+the template. Keep the service at **one replica**.
+
+**Updating the template** after repo changes (no dashboard needed):
+
+```bash
+railway link                     # to the deployed project
+railway templates create --json  # new draft from the project (prints the draft id/code)
+# then publish the draft via the API:
+railway api 'mutation { templatePublish(id: "<draft-id>", input: {category: "Other", description: "...", readme: "..."}) { id status } }'
+```
+
+(Or open the draft's `editorUrl` and publish from the dashboard editor.)
+The published template's code stays `wa-slash-commands`, so the button link
+doesn't change.
