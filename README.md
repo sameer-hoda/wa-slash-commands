@@ -91,17 +91,31 @@ curl -sL https://raw.githubusercontent.com/sameer-hoda/wa-slash-commands/master/
 
 [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template?template=https://github.com/sameer-hoda/wa-slash-commands)
 
-One container, one volume, five minutes — full guide: **[docs/RAILWAY.md](docs/RAILWAY.md)**.
+**You need:** a free [Railway account](https://railway.com) and a
+[Gemini API key](https://aistudio.google.com/apikey) (billing-enabled project).
 
-1. Click the button (or `railway up`) — Railway builds the Dockerfile; `railway.toml`
-   pins it single-instance (never scale above one replica).
-2. Mount a volume at **`/data`** — **required**: pairing, message history and
-   Me-chat state live there, and without it you re-scan the QR on every deploy.
-3. Set variables: `GEMINI_API_KEY` (billing-enabled), optionally `SETUP_PASSWORD`, `TZ`.
-   No `SETUP_PASSWORD`? One is generated and printed in the deploy logs.
-4. Open the service URL, log in, scan the QR. The page shows
-   `Connected as +91… · Me chat: …` and a welcome lands in your Me chat.
-   Health probe: `/health`.
+### Fastest: one command (macOS / Linux / WSL)
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/sameer-hoda/wa-slash-commands/master/deploy-railway.sh)
+```
+
+It asks for your Gemini key and a setup password, then does everything else:
+installs the Railway CLI, signs you in, creates the project, attaches the `/data`
+volume, sets variables, builds, gives you a URL and opens it. Then:
+
+1. Log in to the page with your setup password.
+2. WhatsApp → **Settings → Linked devices → Link a device** → scan the QR.
+3. Wait for `Connected as +91…` — a welcome lands in your Me chat. Type `/pending` in any group.
+
+Re-run the same command anytime to update; your WhatsApp pairing is kept.
+
+### Other ways
+
+The button above, the dashboard, or the CLI step by step — see
+**[docs/RAILWAY.md](docs/RAILWAY.md)**. Whichever you use, the `/data` volume is
+**required** (it holds your pairing and history) and the service must stay at
+**one replica**.
 
 ---
 
