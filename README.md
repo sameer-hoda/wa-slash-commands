@@ -7,6 +7,12 @@
     <img alt="Go" src="https://img.shields.io/badge/Go-1.21+-00ADD8.svg" />
     <img alt="License" src="https://img.shields.io/badge/License-MIT-green.svg" />
   </p>
+
+  <p>
+    <a href="https://railway.com/new/template?template=https://github.com/sameer-hoda/wa-slash-commands">
+      <img src="https://railway.com/button.svg" alt="Deploy on Railway" height="40">
+    </a>
+  </p>
 </div>
 
 `wa-slash-commands` is a standalone, intelligent WhatsApp CLI integration that turns any WhatsApp chat into a productive workspace. It leverages a native Go bridge (`whatsmeow`) and the Google Gemini API to analyze conversations, extract rich insights, and answer `/slash` commands — **every answer delivered privately to your own Me chat** (self-chat), never into the group you typed it in.
@@ -83,10 +89,12 @@ curl -sL https://raw.githubusercontent.com/sameer-hoda/wa-slash-commands/master/
 
 ## ☁️ Deploy on Railway
 
-One container, one volume, five minutes:
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template?template=https://github.com/sameer-hoda/wa-slash-commands)
 
-1. Deploy this repo with the Railway button or `railway up` (Dockerfile included;
-   `railway.toml` keeps it single-instance — never scale above one replica).
+One container, one volume, five minutes — full guide: **[docs/RAILWAY.md](docs/RAILWAY.md)**.
+
+1. Click the button (or `railway up`) — Railway builds the Dockerfile; `railway.toml`
+   pins it single-instance (never scale above one replica).
 2. Mount a volume at **`/data`** — **required**: pairing, message history and
    Me-chat state live there, and without it you re-scan the QR on every deploy.
 3. Set variables: `GEMINI_API_KEY` (billing-enabled), optionally `SETUP_PASSWORD`, `TZ`.
