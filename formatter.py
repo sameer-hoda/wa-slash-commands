@@ -5,8 +5,16 @@ formatter.py
 All WA message templates for slash command V2.
 """
 
-def fmt_sotu(data: dict) -> str:
-    lines = ["*State of the Union*\n"]
+def _title_chat(chat_name: str) -> str:
+    """Chat label for titles; empty when the name is just a raw JID."""
+    n = (chat_name or "").strip()
+    return n[:48] if n and "@" not in n else ""
+
+
+def fmt_sotu(data: dict, chat_name: str = "") -> str:
+    chat = _title_chat(chat_name)
+    title = f"*State of the Union — {chat}*" if chat else "*State of the Union*"
+    lines = [title + "\n"]
     
     if data.get("group_purpose"):
         lines.append("*What this group is about*")
@@ -53,12 +61,14 @@ def fmt_pending(data: dict) -> str:
         
     return "\n\n────────────────────\n\n".join(messages)
 
-def fmt_stats(data: dict, days: int = 14) -> str:
+def fmt_stats(data: dict, days: int = 14, chat_name: str = "") -> str:
     participants = data.get("participants", [])
     health = data.get("group_health", "")
     bottleneck = data.get("bottleneck", "None")
 
-    lines = [f"📊 *Team Stats — Last {days} Days*", ""]
+    chat = _title_chat(chat_name)
+    chat_part = f" — {chat}" if chat else ""
+    lines = [f"📊 *Team Stats — Last {days} Days{chat_part}*", ""]
     
     for p in participants[:5]:
         name = p.get("name", "Unknown")
@@ -72,15 +82,22 @@ def fmt_stats(data: dict, days: int = 14) -> str:
     
     return "\n".join(lines)
 
-def fmt_recap(data: dict) -> str:
+def fmt_recap(data: dict, chat_name: str = "") -> str:
     events = data.get("events", [])
     date_str = data.get("date_str", "")
     summary = data.get("summary", "")
-    
+    chat = _title_chat(chat_name)
+    title = "📋 *Last 24 Hrs*"
+    if chat:
+        title = f"📋 *Last 24 Hrs — {chat}*"
+
     if not events:
-        return "📌 *24h Recap*\n\n_No significant events in the last 24 hours._"
-        
-    lines = [f"📋 *Last 24 Hrs*"]
+        empty = "📌 *24h Recap*"
+        if chat:
+            empty = f"📌 *24h Recap — {chat}*"
+        return empty + "\n\n_No significant events in the last 24 hours._"
+
+    lines = [title]
     if date_str:
         lines.append(date_str)
     lines.append("")

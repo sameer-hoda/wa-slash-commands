@@ -72,6 +72,12 @@ def _chat_name(jid: str) -> str:
     except Exception:
         return jid
 
+
+def _chat_label(jid: str) -> str:
+    """Chat display name for titles — empty when it resolves to a raw JID."""
+    name = _chat_name(jid)
+    return name[:48] if name and "@" not in name else ""
+
 log_path = os.path.join(_dir, "slash_cmd.log")
 logging.basicConfig(
     filename=log_path,
@@ -136,7 +142,7 @@ def cmd_sotu(jid: str) -> None:
     t0 = time.time()
     cached = cache_read(jid, "sotu")
     if cached:
-        send_answer(fmt_sotu(cached))
+        send_answer(fmt_sotu(cached, chat_name=_chat_label(jid)))
         log_invocation("/sotu", jid, "cache hit", time.time() - t0)
         return
 
@@ -208,7 +214,7 @@ Output ONLY valid JSON, no markdown.
     cache_write(jid, "sotu", data)
     # Save as prior for next run
     cache_write(jid, "_sotu_prior", data)
-    send_answer(fmt_sotu(data))
+    send_answer(fmt_sotu(data, chat_name=_chat_label(jid)))
     log_invocation("/sotu", jid, f"{len(data.get('top_decisions',[]))} decisions", time.time() - t0)
 
 
@@ -236,7 +242,7 @@ def cmd_stats(jid: str, days: int = 14) -> None:
     t0 = time.time()
     cached = cache_read(jid, "stats")
     if cached:
-        send_answer(fmt_stats(cached, days))
+        send_answer(fmt_stats(cached, days, chat_name=_chat_label(jid)))
         log_invocation("/stats", jid, "cache hit", time.time() - t0)
         return
 
@@ -245,7 +251,10 @@ def cmd_stats(jid: str, days: int = 14) -> None:
     _print_context_info(msgs, "/stats")
 
     if not activity:
-        send_answer(f"📊 *Team Stats — Last {days} Days*\n\n_No messages found._")
+        group_part = _chat_label(jid)
+        title = (f"📊 *Team Stats — Last {days} Days — {group_part}*"
+                 if group_part else f"📊 *Team Stats — Last {days} Days*")
+        send_answer(f"{title}\n\n_No messages found._")
         return
 
     context = format_messages_ist(msgs)
@@ -306,7 +315,7 @@ Output ONLY valid JSON, no markdown.
         send_answer(GEMINI_FAILED_TEXT)
         return
     cache_write(jid, "stats", data)
-    send_answer(fmt_stats(data, days))
+    send_answer(fmt_stats(data, days, chat_name=_chat_label(jid)))
     log_invocation("/stats", jid, f"{len(data.get('participants',[]))} participants", time.time() - t0)
 
 
@@ -316,7 +325,9 @@ def cmd_recap(jid: str) -> None:
     msgs = get_messages(jid, days=1, limit=2000)
     _print_context_info(msgs, "/recap")
     if not msgs:
-        send_answer("📌 *24h Recap*\n\n_No messages in the last 24 hours._")
+        group_part = _chat_label(jid)
+        title = (f"📌 *24h Recap — {group_part}*" if group_part else "📌 *24h Recap*")
+        send_answer(f"{title}\n\n_No messages in the last 24 hours._")
         return
 
     context = format_messages_ist(msgs)
@@ -362,7 +373,7 @@ Output ONLY valid JSON, no markdown.
         log_invocation("/recap", jid, "gemini failed", time.time() - t0)
         send_answer(GEMINI_FAILED_TEXT)
         return
-    send_answer(fmt_recap(data))
+    send_answer(fmt_recap(data, chat_name=_chat_label(jid)))
     log_invocation("/recap", jid, f"{data.get('signal_count',0)} events", time.time() - t0)
 
 
@@ -373,6 +384,8 @@ def cmd_eli5(jid: str, topic: str) -> None:
     _print_context_info(msgs, "/eli5")
     context = format_messages_ist(msgs)
     topic_str = topic if topic else "the current conversation context"
+    grp_label = _chat_label(jid)
+    grp_clause = f" — from *{grp_label}*" if grp_label else ""
 
     prompt = f"""Explain the following to a 30-year-old professional. Be concise, clear, and professional.
 
@@ -384,7 +397,7 @@ Chat History:
 {context}
 
 Format your response for WhatsApp:
-- Start with this exact header: 💡 *ELI30: {topic_str[:60]}*
+- Start with this exact header: 💡 *{topic_str[:60]}*{grp_clause}
 - Bold key terms with *asterisks*
 - Use _italics_ for caveats or nuance
 - Keep to 3-4 short paragraphs max

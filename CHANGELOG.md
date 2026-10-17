@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- **Answers name the group they analyzed** — `/sotu`, `/stats` and `/recap` titles now
+  include the chat name (e.g. `📊 *Team Stats — Last 14 Days — Launch Squad*`), matching
+  `/pending` and `/eli5`; `/eli5` drops the cute "ELI30" prefix for a plain
+  `💡 *{topic}* — from *{chat}*` header.
+- **Contributing guide** (`CONTRIBUTING.md`) — sandbox lab and model-benchmark how-tos.
+- `scripts/` — all diagnostics (`test_api.py`, `test_local.py`, `evaluate_models.py`,
+  `gemini_check.py`, `clean.sh`) out of the repo root.
+
+### Changed
+- README second pass: unified dark screenshot set (one story, one time), honest FAQ
+  (billing-enabled key recommendation matching `docs/RAILWAY.md`), softened model-latency
+  claim, "Not affiliated with WhatsApp or Meta" footer line.
+
 ## [2.0.0] - 2026-10-17
 
 ### Added

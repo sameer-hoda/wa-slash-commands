@@ -260,7 +260,9 @@ def step_run_test():
     print()
 
     _dir = os.path.dirname(os.path.abspath(__file__))
-    test_path = os.path.join(_dir, "test_local.py")
+    test_path = os.path.join(_dir, "scripts", "test_local.py")
+    if not os.path.exists(test_path):
+        test_path = os.path.join(_dir, "test_local.py")
     result = subprocess.run([sys.executable, test_path, "--cmd", "/help"], cwd=_dir)
     if result.returncode == 0:
         ok("Smoke test passed ✨")

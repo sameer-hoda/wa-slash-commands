@@ -102,7 +102,10 @@ def _metrics(ctx, window: str = WINDOW):
         dt = ledger._ist(m["ts"]) if m.get("ts") else None
         if dt is None:
             continue
-        rows.append((dt, m.get("sender") or "?", content))
+        sender = m.get("sender") or "?"
+        if sender.isdigit():  # senders the fixture could not recover — skip
+            continue
+        rows.append((dt, sender, content))
     rows.sort(key=lambda r: r[0])
 
     per = {}

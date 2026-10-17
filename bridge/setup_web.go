@@ -282,9 +282,20 @@ func pythonEnv() []string {
 }
 
 func pythonCmd(name string, args ...string) (*exec.Cmd, error) {
-	script := name
-	if _, err := os.Stat(script); os.IsNotExist(err) {
-		script = filepath.Join("..", name)
+	// Scripts may live at the app root, in scripts/, or one level up —
+	// try the common locations so the bridge keeps working from any CWD.
+	candidates := []string{
+		name,
+		filepath.Join("scripts", name),
+		filepath.Join("..", name),
+		filepath.Join("..", "scripts", name),
+	}
+	script := candidates[0]
+	for _, cand := range candidates {
+		if _, err := os.Stat(cand); err == nil {
+			script = cand
+			break
+		}
 	}
 	abs, err := filepath.Abs(script)
 	if err != nil {

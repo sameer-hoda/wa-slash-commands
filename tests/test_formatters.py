@@ -120,3 +120,20 @@ def test_fmt_recap_empty():
     assert fmt_recap({"events": [], "summary": "Analysis failed.", "date_str": ""}) == (
         "📌 *24h Recap*\n\n_No significant events in the last 24 hours._"
     )
+
+
+def test_titles_name_the_chat():
+    assert fmt_sotu(SOTU_FIXTURE, chat_name="Launch Squad").startswith(
+        "*State of the Union — Launch Squad*")
+    assert "*Team Stats — Last 14 Days — Launch Squad*" in fmt_stats(
+        STATS_FIXTURE, 14, chat_name="Launch Squad")
+    assert fmt_recap(RECAP_FIXTURE, chat_name="Launch Squad").startswith(
+        "📋 *Last 24 Hrs — Launch Squad*")
+    assert fmt_recap({"events": [], "summary": "s", "date_str": ""},
+                     chat_name="Launch Squad").startswith("📌 *24h Recap — Launch Squad*")
+
+
+def test_titles_skip_raw_jid_labels():
+    assert fmt_sotu(SOTU_FIXTURE, chat_name="910x@lid").startswith("*State of the Union*")
+    assert "Team Stats — Last 14 Days*" in fmt_stats(STATS_FIXTURE, 14, chat_name="910x@lid")
+    assert fmt_recap(RECAP_FIXTURE, chat_name="910x@lid").startswith("📋 *Last 24 Hrs*")

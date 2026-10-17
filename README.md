@@ -16,8 +16,8 @@
 <br>
 
 **A chief of staff for your WhatsApp groups.**
-Type `/pending`, `/sotu`, `/stats`, `/recap` or `/eli5` in any chat — seconds later the
-answer lands **in your own private chat**. The group you typed in never sees a thing.
+Type `/pending` in any WhatsApp group. Get who-owes-what, privately, in your own chat —
+plus `/sotu`, `/stats`, `/recap`, `/eli5`. The group never sees a thing.
 
 </div>
 
@@ -26,31 +26,30 @@ answer lands **in your own private chat**. The group you typed in never sees a t
 ## Why you want this
 
 You are in ten group chats. Somewhere in there are the things you actually owe people —
-and the things they owe you. Scrolling to find them is hopeless. wa-slash-commands reads
-the room for you:
+and the things they owe you. Scrolling back to find them is hopeless. wa-slash-commands
+reads the room for you:
 
-- **Invisible** — answers go to your *Me chat* ("Message yourself"). No posts, no deletions,
-  no trace in the group. Others can type commands all day; only your phone unlocks them.
-- **Honest AI** — the assistant runs [Gemini](https://ai.google.dev/) with strict JSON
-  schemas; due dates and overdue flags for `/pending` are computed in code from cited
-  messages, never invented by a model.
-- **Fail loud** — no key, no quota, no analysis? You get an explicit error message,
-  never a politely fake "all clear".
-- **Runs anywhere** — one container: a Go bridge (WhatsApp connection), a Python engine,
-  a tiny web setup page. Deploys to
+- **Know what you owe — and what's owed to you.** `/pending` turns the last week into a
+  clean list: every open ask, since when, chased how many times, what's overdue. Dates
+  come from code, never invented by a model.
+- **Invisible.** Answers land in your *Me chat* ("Message yourself") — no posts, no
+  deletions, no trace in the group. Others can type commands all day; only your phone
+  unlocks them.
+- **Yours only.** Message history stays in SQLite on your machine or volume; each command
+  sends only the message text it needs to the Gemini API, nothing else.
+- **Deploys in three minutes.** One container — a Go bridge for WhatsApp, a Python
+  engine, a tiny web setup page — on
   [Railway](https://railway.com/deploy/wa-slash-commands) with one click.
 
 ## Show me
 
 <div align="center">
 
-Type it in the group…
-
 <table>
   <tr>
     <td align="center" width="33%">
       <img src="assets/group.jpg" width="300" alt="A group chat where /pending is typed">
-      <br><sub><b>…in any group chat</b> — the members see only your command</sub>
+      <br><sub><b>Type it in the group</b> — members see only your command</sub>
     </td>
     <td align="center" width="33%">
       <img src="assets/pending.jpg" width="300" alt="/pending answer in the Me chat">
@@ -205,9 +204,10 @@ no group metadata, and nothing from chats you didn't run a command in.
 <summary>What does it cost?</summary>
 
 The software is free (MIT). You need a
-[Gemini API key](https://aistudio.google.com/apikey) — the generous free tier covers
-personal use, paid usage is cents per command — and, on Railway, a hobby plan
-(≈ $5/mo) for the always-on container.
+[Gemini API key](https://aistudio.google.com/apikey) from a **billing-enabled** project:
+on the free tier Google may use your traffic to improve its models — which you probably
+don't want for group messages — while paid key usage is cents per command. On Railway,
+plan on a hobby instance (≈ $5/mo) for the always-on container.
 
 </details>
 
@@ -215,11 +215,11 @@ personal use, paid usage is cents per command — and, on Railway, a hobby plan
 <summary>Which model does it use, and can I change it?</summary>
 
 The engine ships with `gemini-2.5-flash-lite` (`GEMINI_MODEL` in `engine.py`) — measured
-equal accuracy to pricier models with ~20× lower latency on `/pending`. To benchmark
+equal open-loop recall to the pricier models at a fraction of the latency. To benchmark
 other models against *your real history*:
 
 ```bash
-python3 evaluate_models.py
+python3 scripts/evaluate_models.py
 ```
 
 </details>
@@ -227,8 +227,8 @@ python3 evaluate_models.py
 <details>
 <summary>What if the AI is down or my key is broken?</summary>
 
-You get an explicit error in your Me chat — never a fake "all clear". `python3
-test_api.py` verifies your key supports text and strict-JSON generation; `wacmd.py`
+You get an explicit error in your Me chat — never a politely fake "all clear". `python3
+scripts/test_api.py` verifies your key supports text and strict-JSON generation; `wacmd.py`
 logs payload sizes and the earliest message pulled so you can debug context limits.
 
 </details>
@@ -254,10 +254,11 @@ no replies, no edits, no deletions. Admins see a normal text message sent by you
 
 ```bash
 python3 -m pytest tests/ -q       # offline test suite — no network, no keys needed
-python3 test_api.py               # is my Gemini key healthy? (text + JSON schema)
-python3 evaluate_models.py        # benchmark Gemini models on your real history
-python3 sandbox/run.py --approach ledger --pulse   # /pending experiments (sandbox/)
+python3 scripts/test_api.py       # is my Gemini key healthy? (text + JSON schema)
 ```
+
+Model benchmarking and the `/pending` approach lab (`sandbox/`) —
+see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
@@ -266,3 +267,5 @@ MIT © [Sameer Hoda](https://github.com/sameer-hoda) ·
 [Security policy](SECURITY.md) ·
 [Railway deploy guide](docs/RAILWAY.md) ·
 [Setup guide](SETUP.md)
+
+*Not affiliated with WhatsApp or Meta.*
