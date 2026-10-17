@@ -169,8 +169,8 @@ ok "GEMINI_API_KEY, SETUP_PASSWORD, TZ=$TZ_VALUE"
 
 # ── 8. build + deploy ─────────────────────────────────────────────────────────
 step "Building and deploying (first build takes 3–6 minutes)"
-railway up --ci || die "The build failed — see the log above, or run: railway logs --build"
-ok "Deployed"
+railway up --detach -y || die "The deploy couldn't start. Run: railway up --ci  and check the log."
+ok "Build started (the next step waits for it)"
 
 DOMAIN_OUT="$(railway domain 2>&1 || true)"
 URL="$(printf %s "$DOMAIN_OUT" | grep -oE 'https?://[A-Za-z0-9.-]+\.up\.railway\.app' | head -1)"
@@ -183,7 +183,7 @@ ok "Public URL: $URL"
 # ── 9. wait for health ────────────────────────────────────────────────────────
 step "Waiting for Mosaic to start"
 healthy=0
-for _ in $(seq 1 60); do
+for _ in $(seq 1 90); do
   if curl -fsS --max-time 5 "$URL/health" >/dev/null 2>&1; then healthy=1; break; fi
   printf "."; sleep 5
 done

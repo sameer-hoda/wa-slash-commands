@@ -28,7 +28,7 @@ is created) and a **setup password** (press Enter to generate one) — then:
 | create project + service | `railway init --name wa-slash-commands` · `railway add --service mosaic` |
 | attach storage | `railway volume add --mount-path /data` |
 | set variables (secrets via stdin) | `railway variable set GEMINI_API_KEY --stdin` · `SETUP_PASSWORD` · `TZ` |
-| build and deploy | `railway up --ci` |
+| build and deploy | `railway up --detach -y` |
 | public URL | `railway domain` |
 | wait, then open the page | polls `/health` |
 
