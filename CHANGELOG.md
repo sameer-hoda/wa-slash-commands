@@ -21,6 +21,14 @@ All notable changes to this project will be documented in this file.
   `assets/*-v2.webp` (new filenames to defeat GitHub's image-proxy cache). The dark
   banner remains as the repository **social preview** (`assets/social-cover.png`).
 
+### Changed
+- **"What it does" image rebuilt around a real WhatsApp UI** — a 4:3 poster with the
+  group chat (312 unread, asks, reactions, reply quote) on the left and four
+  "Message yourself" answer screens in a 2×2 on the right, all five screens drawn on the
+  same iOS dark-mode WhatsApp spec (colors, header, bubbles, ticks, composer), with each
+  answer's content derived from the chat on the left. Composited in code from five
+  separately generated screens; light and dark variants (`assets/bento-v3*.webp`).
+
 ## [2.0.1] - 2026-10-17
 
 ### Added

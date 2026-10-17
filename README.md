@@ -46,8 +46,8 @@ wa-slash-commands is one command that reads the room for you.
 
 <p align="center">
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/bento-v2-dark.webp">
-  <img src="assets/bento-v2.webp" width="100%" alt="/pending, /recap, /sotu and /stats — one command in, a private answer out, nothing posted to the group">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/bento-v3-dark.webp">
+  <img src="assets/bento-v3.webp" width="100%" alt="One command in any group, four private answers: /pending, /recap, /stats and /sotu rendered in WhatsApp dark mode">
 </picture>
 </p>
 
