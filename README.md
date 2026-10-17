@@ -33,7 +33,7 @@ Type these from your phone in **any** chat. The answer always arrives in your **
 | Command | Description | Time Window |
 | :--- | :--- | :--- |
 | `/sotu` | **State of the Union:** Identifies the group's purpose, big picture objectives, key themes, and decisions. | 30 Days |
-| `/pending` | **Critical Open Loops:** Scans history to track ongoing initiatives and outputs actionable "Next Steps" with DRIs. | 30 Days |
+| `/pending` | **Open loops by owner:** who to chase, chases, overdue — dates computed in code, never invented. | 7 Days |
 | `/stats` | **Team Personas:** Analyzes participant activity and labels them with collaboration styles (e.g., *The Driver*, *The Lurker*). | 14 Days |
 | `/recap` | **24h Timeline:** Extracts only critical signals and decisions from the past 24 hours, filtering out noise. | 24 Hours |
 | `/eli5 <topic>` | **Explain Like I'm 5:** Context-aware search engine that explains a topic based strictly on what was discussed. | 30 Days |

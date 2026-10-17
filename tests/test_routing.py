@@ -129,6 +129,39 @@ def test_unresolved_mechat_drops_answer(store, monkeypatch):
     assert posts == [] and deletes == []
 
 
+def test_owner_pending_uses_ledger(store, monkeypatch):
+    _owner_world(store)
+    _wire_engine(monkeypatch, [("A", "hi", datetime.datetime(2026, 10, 16, 9, 0))])
+    monkeypatch.setattr(wacmd, "_chat_name", lambda jid: "Branding OKR")
+    monkeypatch.setattr(
+        wacmd.ledger, "render_pending",
+        lambda jid, msgs, chat_name="": "📌 *Pending — Branding OKR*\n- Fix Dreame webview")
+    writes = []
+    monkeypatch.setattr(wacmd, "cache_write", lambda *a, **k: writes.append(a))
+    posts, deletes = _capture(monkeypatch)
+
+    wacmd.handle_command(GROUP_JID, PN_JID, "/pending")
+
+    assert len(posts) == 1
+    assert posts[0]["json"]["recipient"] == PN_JID
+    assert "Fix Dreame webview" in posts[0]["json"]["message"]
+    assert writes and writes[0][1] == "pending"
+    assert deletes == []
+
+
+def test_pending_ledger_failure_is_loud(store, monkeypatch):
+    _owner_world(store)
+    _wire_engine(monkeypatch, [("A", "hi", datetime.datetime(2026, 10, 16, 9, 0))])
+    monkeypatch.setattr(wacmd, "_chat_name", lambda jid: "T")
+    monkeypatch.setattr(wacmd.ledger, "render_pending", lambda *a, **k: None)
+    posts, _deletes = _capture(monkeypatch)
+
+    wacmd.handle_command(GROUP_JID, PN_JID, "/pending")
+
+    assert len(posts) == 1
+    assert "Analysis failed" in posts[0]["json"]["message"]
+
+
 def test_send_message_carries_bridge_token(store, monkeypatch):
     (store / "bridge_token").write_text("t0k3n")
     posts, _deletes = _capture(monkeypatch)
@@ -175,9 +208,9 @@ def test_gemini_failure_is_not_faked_empty(store, monkeypatch):
     monkeypatch.setattr(wacmd, "cache_write", lambda *a, **k: writes.append(a))
     posts, _deletes = _capture(monkeypatch)
 
-    wacmd.handle_command(GROUP_JID, PN_JID, "/pending")
+    wacmd.handle_command(GROUP_JID, PN_JID, "/recap")
 
     assert len(posts) == 1
     assert "Analysis failed" in posts[0]["json"]["message"]
-    assert "No critical open loops" not in posts[0]["json"]["message"]
+    assert "No significant events" not in posts[0]["json"]["message"]
     assert writes == []

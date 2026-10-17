@@ -29,6 +29,7 @@ sys.path.insert(0, _dir)
 load_dotenv(os.path.join(_dir, ".env"), override=True)
 
 import mechat
+import ledger
 import engine
 from engine import (
     gemini_json, gemini_text,
@@ -56,6 +57,20 @@ GEMINI_FAILED_TEXT = (
 
 def _analysis_failed(data) -> bool:
     return bool(isinstance(data, dict) and data.get("_gemini_failed"))
+
+
+def _chat_name(jid: str) -> str:
+    try:
+        import sqlite3
+
+        con = sqlite3.connect(f"file:{engine.MESSAGES_DB_PATH}?mode=ro", uri=True)
+        try:
+            row = con.execute("SELECT name FROM chats WHERE jid = ?", (jid,)).fetchone()
+        finally:
+            con.close()
+        return (row[0] if row and row[0] else "") or jid
+    except Exception:
+        return jid
 
 log_path = os.path.join(_dir, "slash_cmd.log")
 logging.basicConfig(
@@ -200,71 +215,20 @@ Output ONLY valid JSON, no markdown.
 # ── /pending ──────────────────────────────────────────────────────────────────
 def cmd_pending(jid: str) -> None:
     t0 = time.time()
-    msgs = get_messages(jid, days=30, limit=500)
+    msgs = get_messages(jid, days=7, limit=400)
     _print_context_info(msgs, "/pending")
     if not msgs:
         send_answer("⚠️ No recent messages to analyse for pending tasks.")
         return
 
-    context = format_messages_ist(msgs)
-    prior = cache_read(jid, "pending") or {}
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M IST")
-
-    prior_block = ""
-    if prior.get("critical_items"):
-        prev_items = [f"{i.get('owner','?')}: {i.get('action','?')}" for i in prior["critical_items"][:3]]
-        prior_block = f"""
-Previous /pending items (from last run):
-  {'; '.join(prev_items)}
-
-Instruction: In 'resolved_since_last' list any of these that now appear closed/resolved.
-"""
-
-    prompt = f"""You are an executive chief of staff. Review this chat history (which may span up to 30 days). Identify the ongoing projects, tasks, or distinct work streams (initiatives). For each initiative, extract the most important chronological developments, decisions, or roadblocks. Finally, synthesize a clear, single-line "Next Step" that specifies who needs to do what. Be extremely thorough and do not miss any major initiatives discussed.
-
-Chat History:
-{context}
-
-Return ONLY valid JSON with:
-- "initiatives": array of objects, each with:
-    "title": string (Name of the initiative),
-    "updates": array of strings (e.g. "1 Apr — Name: Action/Update"),
-    "next_steps": string (A line what is expected next on this initiative)
-
-Output ONLY valid JSON, no markdown.
-"""
-    fallback = {
-        "initiatives": []
-    }
-    schema = {
-        "type": "object",
-        "properties": {
-            "initiatives": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "title": {"type": "string"},
-                        "updates": {
-                            "type": "array",
-                            "items": {"type": "string"}
-                        },
-                        "next_steps": {"type": "string"}
-                    },
-                    "required": ["title", "updates", "next_steps"]
-                }
-            }
-        },
-        "required": ["initiatives"]
-    }
-    data = gemini_json(prompt, fallback, schema)
-    if _analysis_failed(data):
-        log_invocation("/pending", jid, "gemini failed", time.time() - t0)
+    text = ledger.render_pending(jid, msgs, chat_name=_chat_name(jid))
+    if text is None:
+        log_invocation("/pending", jid, "gemini failed (ledger)", time.time() - t0)
         send_answer(GEMINI_FAILED_TEXT)
         return
-    cache_write(jid, "pending", data)
-    send_answer(fmt_pending(data))
-    log_invocation("/pending", jid, f"{len(data.get('critical_items',[]))} items", time.time() - t0)
+    cache_write(jid, "pending", {"rendered": text})
+    send_answer(text)
+    log_invocation("/pending", jid, f"ledger · {len(text)} chars", time.time() - t0)
 
 
 # ── /stats ────────────────────────────────────────────────────────────────────
@@ -437,7 +401,7 @@ HELP_TEXT = """\
 *Available Commands:* 🤖
 
 */sotu* — State of the Union: decisions, risks, momentum (last 30 days).
-*/pending* — Critical dropped balls & stalled threads with owner names.
+*/pending* — Open loops by owner: who to chase, how overdue, what's blocked.
 */stats* — Team personas, roles & activity (last 14 days).
 */recap* — 24h timeline: key events only, in IST, noise filtered out.
 */eli5 <topic>* — Explain any topic clearly (professional tone, WA-friendly).

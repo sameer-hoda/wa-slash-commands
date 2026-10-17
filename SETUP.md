@@ -83,7 +83,7 @@ Type these from your phone in **any** chat. The answer always arrives in your Me
 | Command | What it does |
 |---|---|
 | `/sotu` | 30-day state of the union |
-| `/pending` | Open threads & next steps with owners |
+| `/pending` | Open loops by owner — who to chase, chases, overdue |
 | `/stats` | Team personas & activity share |
 | `/recap` | 24h signal-only timeline |
 | `/eli5 <topic>` | Explain anything using chat as context |

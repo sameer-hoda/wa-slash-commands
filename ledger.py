@@ -5,11 +5,11 @@ Instead of "summarize the workstreams", this asks: who owes what to whom,
 and is it still open?  The LLM only classifies and cites message numbers;
 code owns dates, ages, sorting, dedupe and layout.
 
-Registered in approaches.py (APPROACHES.append(LEDGER_ENTRY)).
+Two entry points, one engine:
 
-Run:
-    python3 sandbox/run.py --approach ledger --approach digest6 \
-        --model gemini-2.5-flash --temp 0.1 --repeat 3 --save
+- ``render_pending(jid, msgs, chat_name)`` — production: wacmd.py's /pending.
+  Two model samples are unioned; returns None when both calls fail.
+- ``run_ledger(ctx, call_json)`` — the sandbox lab (python3 sandbox/run.py).
 """
 
 import datetime
@@ -23,6 +23,24 @@ UTC = datetime.timezone.utc
 MENTION_RE = re.compile(r"@(\d{10,})")
 # Pure filler only. Never drop closure words ("done", "paused", "live", "yes").
 BANTER = {"lol", "haha", "hey", "o", "k", "hmm", "👋👋", "?", "??", "???", "."}
+
+# Bot digests and slash commands never belong in the input transcript.
+BOT_NOISE = (
+    "🎯",
+    "⏭ *Next:*",
+    "⚠️ *Mosaic*",
+    "📋 *Last 24 Hrs*",
+    "📊 *Team Stats",
+    "📌 *Pending",
+)
+
+
+def is_bot_noise(content: str) -> bool:
+    text = (content or "").strip()
+    if text.startswith("/"):
+        return True
+    return any(marker in text for marker in BOT_NOISE)
+
 
 STATUSES = ["no_reply", "open", "blocked", "disputed", "done"]
 STATUS_RANK = {"disputed": 0, "blocked": 1, "no_reply": 2, "open": 3}
@@ -50,9 +68,21 @@ def own_display_names() -> set:
 
 # ── time helpers (code owns every date the user sees) ─────────────────────────
 
+def now_ist() -> datetime.datetime:
+    return datetime.datetime.now(IST)
+
+
 def _ist(ts: str) -> datetime.datetime:
     dt = datetime.datetime.fromisoformat(ts)
     if dt.tzinfo is None:          # fixture stores naive UTC
+        dt = dt.replace(tzinfo=UTC)
+    return dt.astimezone(IST)
+
+
+def _to_ist(dt) -> datetime.datetime:
+    if dt is None:
+        return None
+    if dt.tzinfo is None:          # engine returns naive UTC
         dt = dt.replace(tzinfo=UTC)
     return dt.astimezone(IST)
 
@@ -63,7 +93,7 @@ def _now(ctx: dict) -> datetime.datetime:
     if raw:
         dt = datetime.datetime.fromisoformat(raw)
         return dt if dt.tzinfo else dt.replace(tzinfo=IST)
-    return datetime.datetime.now(IST)
+    return now_ist()
 
 
 def day_label(dt: datetime.datetime, now: datetime.datetime) -> str:
@@ -124,19 +154,56 @@ def resolve_mentions(text: str, mention_map=None) -> str:
     return MENTION_RE.sub(lambda m: "@" + mapping.get(m.group(1), "someone"), text)
 
 
-def build_transcript(ctx: dict, window: str = "7d", max_msgs: int = 400):
-    """Numbered, cleaned, IST-labelled transcript + index for validation."""
-    from approaches import is_bot_noise  # lazy: avoids a circular import
+def _own_idents() -> tuple[set, str]:
+    """(digits that mean 'me', my display name) from the pairing store."""
+    idents, name = set(), ""
+    try:
+        import mechat
 
-    now = _now(ctx)
+        phone, lid, _src = mechat.own_identity()
+        idents = {i for i in (phone, lid) if i}
+        names = own_display_names()
+        name = next(iter(names), "")
+    except Exception:
+        pass
+    return idents, name
+
+
+def _sender_label(sender: str, own_idents: set, own_name: str, chat_jid: str) -> str:
+    """Raw-digit senders (own phone, group-system sends, unresolvable LIDs) are
+    normalized so the model never sees numbers as 'people'."""
+    s = (sender or "").strip()
+    digits = s.lstrip("+")
+    if not digits.isdigit():
+        return s or "?"
+    if digits in own_idents:
+        return own_name or s
+    group_user = (chat_jid or "").split("@")[0]
+    if group_user and digits == group_user:
+        return "Unknown"
+    try:
+        import engine
+
+        name = engine._resolve_sender_name(digits)
+    except Exception:
+        name = ""
+    if name and name != digits:
+        return name
+    return "Unknown"
+
+
+def _rows_to_transcript(rows, now, max_msgs: int = 400, chat_jid: str = ""):
+    """Numbered, cleaned, IST-labelled transcript + index for validation."""
+    own_idents, own_name = _own_idents()
     raw_rows = []
-    for m in ctx["windows"][window]["messages"]:
-        content = (m.get("content") or "").strip()
-        if not content or not m.get("ts"):
+    for dt, sender, content in rows:
+        content = (content or "").strip()
+        if not content or dt is None:
             continue
         if is_bot_noise(content) or content.lower() in BANTER:  # always clean
             continue
-        raw_rows.append((_ist(m["ts"]), m.get("sender") or "?", content))
+        sender = _sender_label(sender, own_idents, own_name, chat_jid)
+        raw_rows.append((dt, sender, content))
     raw_rows = raw_rows[-max_msgs:]
 
     mentioned_ids = set()
@@ -152,7 +219,18 @@ def build_transcript(ctx: dict, window: str = "7d", max_msgs: int = 400):
         index[n] = (dt, sender, text)
         people.add(sender)
         lines.append(f"[{n}] {day_label(dt, now)} {dt:%H:%M} · {sender}: {text}")
+    people.discard("Unknown")
     return index, "\n".join(lines), sorted(people)
+
+
+def build_transcript(ctx: dict, window: str = "7d", max_msgs: int = 400):
+    """Sandbox variant: transcript from a data-dump context."""
+    rows = []
+    for m in ctx["windows"][window]["messages"]:
+        ts = m.get("ts")
+        rows.append((_ist(ts) if ts else None, m.get("sender") or "?", m.get("content")))
+    chat_jid = (ctx.get("meta") or {}).get("chat_jid") or ""
+    return _rows_to_transcript(rows, _now(ctx), max_msgs, chat_jid)
 
 
 # ── prompt + schema ───────────────────────────────────────────────────────────
@@ -203,7 +281,8 @@ How to judge:
 - Skip ideas with no ask, opinions, banter, and anything finished.
 - Asks marked (OWNER) are directed at the manager himself: always include them.
 - Never write dates or times yourself; cite message numbers only.
-- At most 15 loops.
+- No duplicates: once an ask appears, merge every repeat of it into that loop.
+- Prefer the most consequential loops; never exceed 20.
 
 headline: one line, max 15 words — the single thing to unblock first, naming who. No dates or time words (today, noon, Monday).
 
@@ -236,6 +315,27 @@ def ledger_schema(people: list[str]) -> dict:
             },
         },
         "required": ["headline", "loops"],
+    }
+
+
+def _ledger_prompt(index: dict, transcript: str, people: list[str],
+                   now: datetime.datetime):
+    own = own_display_names()
+    candidates = candidate_asks(index)
+    cand_block = "\n".join(
+        f"- [{n}] asks @{person}{' (OWNER)' if person in own else ''}: {preview}"
+        for n, person, preview in candidates
+    ) or "(none detected)"
+    prompt = LEDGER_PROMPT.format(
+        today=f"{now:%a %d %b %Y}", people=", ".join(people),
+        transcript=transcript, candidates=cand_block)
+    return prompt, ledger_schema(people), {"headline": "", "loops": []}, own
+
+
+def _merge_samples(d1, d2) -> dict:
+    return {
+        "headline": ((d1 or {}).get("headline") or (d2 or {}).get("headline") or ""),
+        "loops": (((d1 or {}).get("loops") or []) + ((d2 or {}).get("loops") or [])),
     }
 
 
@@ -396,28 +496,39 @@ def render_ledger(data, index, now, chat_name: str = "", own_names=None) -> str:
     return "\n".join(out).strip()
 
 
+# ── entry points ──────────────────────────────────────────────────────────────
+
+def render_pending(jid: str, msgs, chat_name: str = ""):
+    """Production /pending: engine-fetched (sender, content, dt) messages →
+    WhatsApp-ready ledger text. Returns None when both model samples fail."""
+    import engine
+
+    rows = [(_to_ist(dt), sender, content) for sender, content, dt in msgs]
+    now = now_ist()
+    index, transcript, people = _rows_to_transcript(rows, now, chat_jid=jid)
+    if not index:
+        return render_ledger({"headline": "", "loops": []}, index, now,
+                             chat_name=chat_name)
+    prompt, schema, fallback, own = _ledger_prompt(index, transcript, people, now)
+    d1 = engine.gemini_json(prompt, fallback, schema)
+    d2 = engine.gemini_json(prompt, fallback, schema)
+    f1 = bool((d1 or {}).get("_gemini_failed"))
+    f2 = bool((d2 or {}).get("_gemini_failed"))
+    if f1 and f2:
+        return None
+    good = [d for d, failed in ((d1, f1), (d2, f2)) if not failed]
+    merged = _merge_samples(good[0], good[1] if len(good) > 1 else None)
+    return render_ledger(merged, index, now, chat_name=chat_name, own_names=own)
+
+
 def run_ledger(ctx, call_json) -> str:
-    """Two samples, unioned in code — each flash sample drops different loops;
-    the union recovers almost all of them at 2x the call cost (~8s)."""
+    """Sandbox variant: two samples via an injected caller, unioned in code."""
     now = _now(ctx)
     index, transcript, people = build_transcript(ctx)
-    own = own_display_names()
-    candidates = candidate_asks(index)
-    cand_block = "\n".join(
-        f"- [{n}] asks @{person}{' (OWNER)' if person in own else ''}: {preview}"
-        for n, person, preview in candidates
-    ) or "(none detected)"
-    prompt = LEDGER_PROMPT.format(
-        today=f"{now:%a %d %b %Y}", people=", ".join(people),
-        transcript=transcript, candidates=cand_block)
-    schema = ledger_schema(people)
-    fallback = {"headline": "", "loops": []}
+    prompt, schema, fallback, own = _ledger_prompt(index, transcript, people, now)
     d1, _e1 = call_json(prompt, schema, fallback)
     d2, _e2 = call_json(prompt, schema, fallback)
-    merged = {
-        "headline": ((d1 or {}).get("headline") or (d2 or {}).get("headline") or ""),
-        "loops": (((d1 or {}).get("loops") or []) + ((d2 or {}).get("loops") or [])),
-    }
+    merged = _merge_samples(d1, d2)
     chat_name = (ctx.get("meta") or {}).get("chat_name") or ""
     return render_ledger(merged, index, now, chat_name=chat_name, own_names=own)
 

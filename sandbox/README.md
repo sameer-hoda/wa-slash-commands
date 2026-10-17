@@ -39,6 +39,9 @@ python3 sandbox/run.py --all --save                     # drop outputs/ for revi
 the engine's contact lookup, bot noise dropped), the LLM only classifies and cites
 message numbers, and code validates every citation, computes ages and renders.
 
+> **`ledger.py` now lives at the repo root** — the same engine ships in the
+> production `/pending` (two samples unioned, names normalized, dates in code).
+
 `--clean` drops bot noise (`/commands` and old digests like `🎯 … ⏭ *Next:*`)
 from the 30d context windows (ledger always cleans its own transcript).
 

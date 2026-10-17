@@ -25,3 +25,27 @@ def test_parse_ts_naive_and_z_forms_stay_utc():
 
 def test_parse_ts_int_epoch():
     assert engine.parse_ts(1792226592) == datetime.datetime.utcfromtimestamp(1792226592)
+
+
+def test_resolve_sender_name_chats_fallback(tmp_path, monkeypatch):
+    import sqlite3
+
+    wa = tmp_path / "whatsapp.db"
+    msgs = tmp_path / "messages.db"
+    con = sqlite3.connect(wa)
+    con.execute("CREATE TABLE whatsmeow_lid_map (lid TEXT, pn TEXT)")
+    con.execute("INSERT INTO whatsmeow_lid_map VALUES ('123456789012', '919999000011')")
+    con.execute("CREATE TABLE whatsmeow_contacts "
+                "(their_jid TEXT, push_name TEXT, full_name TEXT, first_name TEXT, business_name TEXT)")
+    con.commit()
+    con.close()
+    con = sqlite3.connect(msgs)
+    con.execute("CREATE TABLE chats (jid TEXT PRIMARY KEY, name TEXT, last_message_time TEXT)")
+    con.execute("INSERT INTO chats VALUES ('919999000011@s.whatsapp.net', 'Priya Sharma', '')")
+    con.commit()
+    con.close()
+
+    monkeypatch.setattr(engine, "WHATSAPP_DB_PATH", str(wa))
+    monkeypatch.setattr(engine, "MESSAGES_DB_PATH", str(msgs))
+
+    assert engine._resolve_sender_name("123456789012") == "Priya Sharma"

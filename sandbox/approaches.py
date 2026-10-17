@@ -11,21 +11,7 @@ import json
 
 import engine
 from formatter import fmt_pending
-
-BOT_NOISE = (
-    "🎯",
-    "⏭ *Next:*",
-    "⚠️ *Mosaic*",
-    "📋 *Last 24 Hrs*",
-    "📊 *Team Stats",
-)
-
-
-def is_bot_noise(content: str) -> bool:
-    text = (content or "").strip()
-    if text.startswith("/"):
-        return True
-    return any(marker in text for marker in BOT_NOISE)
+from ledger import LEDGER_ENTRY, is_bot_noise
 
 
 def formatted_window(ctx: dict, window: str) -> str:
@@ -241,8 +227,6 @@ APPROACHES = [
         "stats": lambda d: {},
     },
 ]
-
-from ledger import LEDGER_ENTRY  # noqa: E402
 
 APPROACHES.append(LEDGER_ENTRY)
 

@@ -255,6 +255,21 @@ def resolve_send_jid(jid: str) -> str:
     return jid  # fallback: send as-is
 
 
+def _chats_db_name(jid: str) -> str:
+    """Display name fallback from the bridge's chats table (messages.db)."""
+    try:
+        if not os.path.exists(MESSAGES_DB_PATH):
+            return ""
+        conn = sqlite3.connect(f"file:{MESSAGES_DB_PATH}?mode=ro", uri=True)
+        try:
+            row = conn.execute("SELECT name FROM chats WHERE jid = ?", (jid,)).fetchone()
+        finally:
+            conn.close()
+        return (row[0] or "") if row else ""
+    except Exception:
+        return ""
+
+
 def _resolve_sender_name(raw_name: str) -> str:
     """Post-process a SQL-returned sender name.
     If it looks like a raw LID, phone number, or JID, resolve it to a human name.
@@ -298,6 +313,9 @@ def _resolve_sender_name(raw_name: str) -> str:
         logging.warning(f"_resolve_sender_name error for '{raw_name}': {e}")
     finally:
         conn.close()
+    chat_name = _chats_db_name(jid or f"{stripped}@s.whatsapp.net")
+    if chat_name:
+        return chat_name
     return raw_name  # fallback
 
 
