@@ -113,9 +113,10 @@ Re-run the same command anytime to update; your WhatsApp pairing is kept.
 [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/wa-slash-commands)
 
 *The button opens the published Railway template (`wa-slash-commands`): the
-`/data` volume is preconfigured and you'll be asked for your own
-`GEMINI_API_KEY`, `SETUP_PASSWORD` and `TZ` — nothing is baked in. Terminal
-users can prefer the one-command deploy above or the step-by-step in
+`/data` volume is preconfigured and you'll be asked for exactly two things —
+your own `GEMINI_API_KEY` and a `SETUP_PASSWORD` (timezone defaults to
+`Asia/Kolkata`; add a `TZ` variable later if needed). Nothing is baked in.
+Terminal users can prefer the one-command deploy above or the step-by-step in
 [docs/RAILWAY.md](docs/RAILWAY.md).*
 
 Whichever you use, the `/data` volume is **required** (it holds your pairing and

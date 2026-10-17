@@ -184,7 +184,8 @@ The one-click template is live at **https://railway.com/deploy/wa-slash-commands
 
 - the GitHub repo as the service source (Railway builds the Dockerfile),
 - the `/data` volume, attached automatically,
-- three **required prompts with no values**: `GEMINI_API_KEY`, `SETUP_PASSWORD`, `TZ`.
+- **two required prompts with no values**: `GEMINI_API_KEY`, `SETUP_PASSWORD`
+  (timezone defaults to `Asia/Kolkata` — add a `TZ` variable later if needed).
 
 Users type their own key and password into the deploy form — no secrets exist in
 the template. Keep the service at **one replica**.
