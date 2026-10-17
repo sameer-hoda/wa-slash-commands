@@ -3,78 +3,245 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Mosaic setup</title>
+<title>Mosaic · setup</title>
 <style>
-  :root { color-scheme: dark; }
+  :root {
+    color-scheme: dark;
+    --bg: #09090b;
+    --card: #0c0c0f;
+    --border: #232328;
+    --border-soft: #1c1c21;
+    --text: #fafafa;
+    --muted: #a1a1aa;
+    --dim: #71717a;
+    --accent: #8b5cf6;
+    --accent-2: #6366f1;
+    --ok: #34d399;
+    --warn: #fbbf24;
+    --bad: #f87171;
+    --radius: 16px;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  }
   * { box-sizing: border-box; }
+  html, body { height: 100%; }
   body {
-    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
-    background: #0d1117; color: #e6edf3;
-    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    padding: 28px 16px;
+    background: radial-gradient(1100px 520px at 50% -12%, #14141a 0%, var(--bg) 58%) fixed;
+    color: var(--text);
+    font: 15px/1.55 var(--font);
+    -webkit-font-smoothing: antialiased;
   }
   .card {
-    width: min(420px, calc(100vw - 32px)); padding: 28px;
-    background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+    width: min(440px, 100%);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 30px;
+    box-shadow: 0 22px 70px -20px rgba(0, 0, 0, .7), inset 0 1px 0 rgba(255, 255, 255, .04);
   }
-  h1 { margin: 0 0 4px; font-size: 20px; }
-  .sub { color: #8b949e; font-size: 13px; margin-bottom: 18px; }
+  .brand { display: flex; align-items: center; gap: 13px; margin-bottom: 26px; }
+  .mark {
+    width: 40px; height: 40px; flex: none;
+    display: grid; place-items: center;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(139, 92, 246, .18), rgba(99, 102, 241, .10));
+    border: 1px solid rgba(139, 92, 246, .30);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06);
+  }
+  .brand h1 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: .01em; }
+  .tagline { margin: 2px 0 0; font-size: 12.5px; color: var(--muted); }
+
   .view { display: none; }
-  .view.active { display: block; }
-  .qr-wrap {
-    background: #fff; border-radius: 8px; padding: 12px; text-align: center; margin: 14px 0;
+  .view.active { display: block; animation: rise .18s ease-out both; }
+  @keyframes rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .view.active { animation: none; } }
+
+  /* login */
+  .field-label {
+    display: block; font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .09em; color: var(--dim); margin-bottom: 8px;
   }
-  .qr-img { width: 100%; max-width: 260px; display: block; margin: 0 auto; }
-  .qr-wait { color: #57606a; font-size: 13px; padding: 40px 0; }
-  .line { padding: 8px 0; border-bottom: 1px solid #21262d; font-size: 14px; word-break: break-all; }
-  .line:last-of-type { border-bottom: none; }
-  .muted { color: #8b949e; }
-  .ok { color: #3fb950; }
-  .warn { color: #d29922; }
-  .bad { color: #f85149; }
   input[type=password] {
-    width: 100%; padding: 10px 12px; margin: 8px 0; border-radius: 8px;
-    border: 1px solid #30363d; background: #0d1117; color: #e6edf3; font-size: 15px;
+    width: 100%; padding: 11px 13px;
+    background: #0f0f13; color: var(--text);
+    border: 1px solid #27272c; border-radius: 10px;
+    font: 15px var(--font);
+    outline: none; transition: border-color .15s, box-shadow .15s;
   }
-  button {
-    width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #238636;
-    background: #238636; color: #fff; font-size: 15px; cursor: pointer; margin-top: 6px;
+  input[type=password]::placeholder { color: #52525b; }
+  input[type=password]:focus {
+    border-color: rgba(139, 92, 246, .55);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, .18);
   }
-  button.secondary { background: transparent; border-color: #30363d; color: #e6edf3; margin-top: 16px; }
-  .err { color: #f85149; font-size: 13px; min-height: 18px; margin-top: 6px; }
-  .tick { font-size: 13px; margin-top: 14px; }
+
+  .btn {
+    width: 100%; margin-top: 14px; padding: 11px 14px;
+    border-radius: 10px; border: 1px solid transparent;
+    font: 600 14px var(--font); letter-spacing: .01em;
+    cursor: pointer; transition: background .15s, border-color .15s, color .15s, transform .05s;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary { background: #fafafa; color: #09090b; }
+  .btn-primary:hover { background: #e4e4e7; }
+  .btn-danger {
+    background: transparent; color: #fca5a5;
+    border-color: #2e2e34;
+  }
+  .btn-danger:hover {
+    border-color: rgba(248, 113, 113, .40);
+    background: rgba(248, 113, 113, .07);
+  }
+
+  .err { min-height: 17px; margin: 10px 0 0; font-size: 12.5px; color: var(--bad); }
+  .hint { margin: 10px 0 0; font-size: 12px; line-height: 1.5; }
+
+  /* pairing */
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 5px 11px; margin-bottom: 18px;
+    font-size: 12px; font-weight: 500;
+    color: var(--warn);
+    background: rgba(251, 191, 36, .07);
+    border: 1px solid rgba(251, 191, 36, .22);
+    border-radius: 999px;
+  }
+  .dot { width: 7px; height: 7px; border-radius: 999px; flex: none; background: currentColor; }
+  .dot-pulse { animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+
+  .qr-frame {
+    display: grid; place-items: center;
+    padding: 22px; margin: 4px 0 20px;
+    background:
+      radial-gradient(circle at 1px 1px, #17171c 1px, transparent 0) 0 0 / 12px 12px,
+      #0a0a0d;
+    border: 1px solid var(--border-soft);
+    border-radius: 14px;
+  }
+  .qr-card {
+    width: 232px; padding: 13px;
+    background: #fff; border-radius: 12px;
+    box-shadow: 0 14px 40px -16px rgba(0, 0, 0, .65);
+    display: grid; place-items: center;
+  }
+  .qr-img { width: 100%; display: block; }
+  .qr-wait { min-height: 206px; display: grid; place-items: center; color: #52525b; font-size: 12.5px; }
+
+  .steps { list-style: none; margin: 0 0 6px; padding: 0; }
+  .steps li {
+    display: flex; align-items: center; gap: 11px;
+    padding: 7px 0; font-size: 13.5px; color: #d4d4d8;
+  }
+  .steps li span {
+    width: 21px; height: 21px; flex: none;
+    display: grid; place-items: center;
+    font-size: 11px; font-weight: 600; color: var(--muted);
+    border: 1px solid var(--border); border-radius: 999px;
+  }
+
+  /* connected */
+  .status-row {
+    padding: 13px 15px; margin-bottom: 16px;
+    background: rgba(52, 211, 153, .05);
+    border: 1px solid rgba(52, 211, 153, .18);
+    border-radius: 12px;
+  }
+  .connected-line { font-size: 14.5px; font-weight: 500; }
+  .connected-line .ok::before { content: "●"; margin-right: 7px; font-size: 10px; vertical-align: 1px; }
+
+  .kv { margin: 0; border: 1px solid var(--border-soft); border-radius: 12px; overflow: hidden; }
+  .kv-row {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 14px;
+    padding: 11px 15px;
+  }
+  .kv-row + .kv-row { border-top: 1px solid var(--border-soft); }
+  .kv-row dt {
+    flex: none; font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--dim);
+  }
+  .kv-row dd { margin: 0; font-size: 13.5px; text-align: right; word-break: break-all; }
+  .mono { font-family: var(--mono); font-size: 12.5px; }
+
+  .tick { margin-top: 14px; font-size: 12.5px; }
+  .tick .ok::before, .tick .warn::before, .tick .bad::before {
+    content: "●"; margin-right: 7px; font-size: 10px; vertical-align: 1px;
+  }
+  .divider { height: 1px; background: var(--border-soft); margin: 20px 0 0; }
+
+  .muted { color: var(--muted); }
+  .ok { color: var(--ok); }
+  .warn { color: var(--warn); }
+  .bad { color: var(--bad); }
+
+  .foot { font-size: 12px; text-align: center; max-width: 400px; }
 </style>
 </head>
 <body>
-<div class="card">
-  <h1>Mosaic</h1>
-  <div class="sub">Slash commands, answered in your Me chat.</div>
-
-  <div id="login-view" class="view">
-    <div class="line muted">Setup password (printed in the deploy logs)</div>
-    <input id="password" type="password" placeholder="setup password" autocomplete="current-password">
-    <button id="login-btn">Open setup</button>
-    <div id="login-err" class="err"></div>
-  </div>
-
-  <div id="setup-view" class="view">
-    <div class="line">Link Mosaic to WhatsApp</div>
-    <div class="qr-wrap">
-      <img id="qr-img" class="qr-img" src="" alt="QR code" style="display:none">
-      <div id="qr-wait" class="qr-wait">waiting for a QR code…</div>
+<main class="card">
+  <header class="brand">
+    <span class="mark" aria-hidden="true">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <rect x="1" y="1" width="8" height="8" rx="2" fill="#8b5cf6" fill-opacity=".85"/>
+        <rect x="11" y="1" width="8" height="8" rx="2" fill="#8b5cf6" fill-opacity=".35"/>
+        <rect x="1" y="11" width="8" height="8" rx="2" fill="#8b5cf6" fill-opacity=".35"/>
+        <rect x="11" y="11" width="8" height="8" rx="2" fill="#6366f1" fill-opacity=".85"/>
+      </svg>
+    </span>
+    <div>
+      <h1>Mosaic</h1>
+      <p class="tagline">Slash commands, answered in your Me chat.</p>
     </div>
-    <div class="line muted">WhatsApp → Linked devices → Link a device</div>
-    <div id="gemini-setup" class="tick muted"></div>
-  </div>
+  </header>
 
-  <div id="connected-view" class="view">
-    <div id="connected-line" class="line"></div>
-    <div class="line">Me chat: <span id="mechat-line"></span></div>
-    <div class="line muted">Last message there: <span id="last-line">—</span></div>
-    <div class="line muted">Resolved via: <span id="how-line">—</span> · welcome sent: <span id="welcomed-line">—</span></div>
+  <section id="login-view" class="view">
+    <label class="field-label" for="password">Setup password</label>
+    <input id="password" type="password" placeholder="••••••••" autocomplete="current-password">
+    <button id="login-btn" class="btn btn-primary">Continue</button>
+    <p id="login-err" class="err"></p>
+    <p class="hint muted">The password you set as <span class="mono">SETUP_PASSWORD</span>, or the one printed in the deploy logs.</p>
+  </section>
+
+  <section id="setup-view" class="view">
+    <div class="status-pill"><span class="dot dot-pulse"></span>Waiting for pairing</div>
+    <div class="qr-frame">
+      <div class="qr-card">
+        <img id="qr-img" class="qr-img" src="" alt="QR code" style="display:none">
+        <div id="qr-wait" class="qr-wait">preparing a fresh code…</div>
+      </div>
+    </div>
+    <ol class="steps">
+      <li><span>1</span>Open WhatsApp on your phone</li>
+      <li><span>2</span>Settings → Linked devices → Link a device</li>
+      <li><span>3</span>Point your camera at this screen</li>
+    </ol>
+    <div id="gemini-setup" class="tick muted"></div>
+  </section>
+
+  <section id="connected-view" class="view">
+    <div class="status-row">
+      <div id="connected-line" class="connected-line"></div>
+    </div>
+    <dl class="kv">
+      <div class="kv-row"><dt>Me chat</dt><dd id="mechat-line" class="mono">—</dd></div>
+      <div class="kv-row"><dt>Last message</dt><dd id="last-line">—</dd></div>
+      <div class="kv-row"><dt>Resolved via</dt><dd id="how-line">—</dd></div>
+      <div class="kv-row"><dt>Welcome</dt><dd id="welcomed-line">—</dd></div>
+    </dl>
     <div id="gemini-connected" class="tick muted"></div>
-    <button id="unlink-btn" class="secondary">Unlink and wipe session</button>
-  </div>
-</div>
+    <div class="divider"></div>
+    <button id="unlink-btn" class="btn btn-danger">Unlink and wipe session</button>
+    <p class="hint muted">Removes the WhatsApp pairing — you'll scan a fresh QR code. Message history stays on the volume.</p>
+  </section>
+</main>
+
+<footer class="foot muted">Answers arrive only in your Me chat. Nothing is ever posted into groups.</footer>
 
 <script>
 (function () {
