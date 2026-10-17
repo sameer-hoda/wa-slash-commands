@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Approach registry for the /pending sandbox.
+"""Approach registry for the /pending sandbox (moved from sandbox/approaches.py).
 
 Each approach knows how to build its prompt(s), how to render the raw model
 result into a WhatsApp message, and what to count. ``run.py`` executes them
@@ -9,20 +9,13 @@ and compares.
 import datetime
 import json
 
-import engine
+import core
 from formatter import fmt_pending
 from ledger import LEDGER_ENTRY, is_bot_noise
 
 
 def formatted_window(ctx: dict, window: str) -> str:
-    w = ctx["windows"][window]
-    msgs = []
-    for m in w["messages"]:
-        ts = datetime.datetime.fromisoformat(m["ts"]) if m.get("ts") else None
-        msgs.append((m["sender"], m["content"], ts))
-    if ctx.get("options", {}).get("clean"):
-        msgs = [m for m in msgs if not is_bot_noise(m[1])]
-    return engine.format_messages_ist(msgs)
+    return core.formatted_window(ctx, window)
 
 
 def initiative_stats(data) -> dict:
@@ -214,7 +207,8 @@ APPROACHES = [
         "desc": "≤6 workstream blocks, two lines each, last-7d weighted",
         "hypothesis": "most human-sounding; no schema guardrails",
         "llm": True, "window": "30d",
-        "build": build_chrono, "render": lambda t: t.strip(),
+        "build": build_chrono,
+        "render": lambda t: t.strip(),
         "stats": lambda d: {},
     },
     {

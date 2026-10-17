@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Dump a read-only context fixture for the /pending sandbox.
+"""Dump a read-only context fixture for the Mosaic sandbox lab.
 
     python3 sandbox/dump_context.py --chat "<group name substring>"
 
-Writes sandbox/data/context.json with three message windows (24h / 7d / 30d),
-sender names resolved exactly like the live engine, timestamps in UTC (IST is
-applied at format time). The live databases are opened read-only.
+Writes sandbox/data/context.json with four message windows
+(24h / 7d / 14d / 30d), sender names resolved exactly like the live engine,
+timestamps in UTC (IST is applied at format time). The live databases are
+opened read-only. One dump serves every command sandbox (/pending, /sotu,
+/recap, /stats, /eli5).
 """
 
 import argparse
@@ -24,7 +26,7 @@ import sqlite3  # noqa: E402
 
 import engine  # noqa: E402
 
-WINDOWS = {"24h": (1, 2000), "7d": (7, 1000), "30d": (30, 500)}
+WINDOWS = {"24h": (1, 2000), "7d": (7, 1000), "14d": (14, 1000), "30d": (30, 500)}
 
 
 def find_chat(name_part: str) -> tuple[str, str]:
