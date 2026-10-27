@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/mdp/qrterminal"
@@ -55,6 +56,12 @@ var (
 	// geminiKeyLive holds a just-validated key in memory only. It is the
 	// bridge's only key store besides the Supervisor-provided env var.
 	geminiKeyLive string
+
+	// History-sync tracking for the Focus "syncing chats" loader bar.
+	// Atomics: written on every store, read on every /setup/state poll.
+	syncPairedAt   atomic.Int64
+	syncLastWrite  atomic.Int64
+	syncStoredMsgs atomic.Int64
 
 	resolveMu     sync.Mutex
 	lastResolveAt time.Time
@@ -568,6 +575,29 @@ func handleHealth(client *whatsmeow.Client, store *MessageStore) http.HandlerFun
 	}
 }
 
+// noteStoreWrite records history-sync progress for the Focus loader bar.
+// Called on every chat/message store; cheap enough to run inline.
+func noteStoreWrite() {
+	now := time.Now().Unix()
+	syncLastWrite.Store(now)
+	syncPairedAt.CompareAndSwap(0, now)
+}
+
+// chatSyncing reports whether initial history sync is still running:
+// paired, recently paired, and data still arriving. Pure for testing.
+func chatSyncing(paired bool, pairedAtUnix, lastWriteUnix int64, now time.Time) bool {
+	if !paired {
+		return false
+	}
+	if pairedAtUnix == 0 {
+		return true // just paired, nothing stored yet
+	}
+	if now.Sub(time.Unix(pairedAtUnix, 0)) > 30*time.Minute {
+		return false
+	}
+	return now.Sub(time.Unix(lastWriteUnix, 0)) < 90*time.Second
+}
+
 func handleSetupState(client *whatsmeow.Client, store *MessageStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		state := readMechatState()
@@ -575,12 +605,20 @@ func handleSetupState(client *whatsmeow.Client, store *MessageStore) http.Handle
 		if state.JID != "" {
 			last = store.LastMessageAt(state.JID)
 		}
+		paired := client.Store.ID != nil
+		if paired {
+			// Mark first-seen pairing only. lastWrite moves exclusively on
+			// real history writes — touching it here would pin syncing=true
+			// forever, since the app polls this endpoint every few seconds.
+			syncPairedAt.CompareAndSwap(0, time.Now().Unix())
+		}
 		qrMu.Lock()
 		qrData := currentQRDataURL
 		qrMu.Unlock()
+		chats, _ := store.ChatCount()
 		writeJSON(w, http.StatusOK, map[string]any{
 			"connected":       client.IsConnected(),
-			"paired":          client.Store.ID != nil,
+			"paired":          paired,
 			"qr_data_url":     qrData,
 			"mechat_jid":      state.JID,
 			"mechat_how":      state.How,
@@ -588,6 +626,9 @@ func handleSetupState(client *whatsmeow.Client, store *MessageStore) http.Handle
 			"welcomed":        state.Welcomed,
 			"last_message_at": last,
 			"gemini_key":      geminiKeyStatus(),
+			"syncing_chats":   chatSyncing(paired, syncPairedAt.Load(), syncLastWrite.Load(), time.Now()),
+			"synced_chats":    chats,
+			"synced_messages": syncStoredMsgs.Load(),
 		})
 	}
 }
@@ -607,10 +648,125 @@ func handleReset(client *whatsmeow.Client, logger waLog.Logger) http.HandlerFunc
 	}
 }
 
+// ── Focus Top-10 ────────────────────────────────────────────────────────────
+// Contract: docs/focus-kit/focus.schema.json. The bridge never ranks — it
+// serves the cached STORE_DIR/focus.json the hourly focus.py run writes,
+// and records app-side done-marks into done.json for the next ranking.
+
+func focusDigestPath() string { return storePath("focus.json") }
+
+// serveFocusDigest serves the cached digest (fast). ?refresh=1 re-ranks
+// synchronously (bounded ~80 s); on ranking failure the previous file is
+// served, so the UI keeps stale data and says so in the footer. With no
+// digest at all, the 404 carries the ranker's typed reason (focus_error.json)
+// so the UI can say "no chats yet" instead of a generic failure.
+func serveFocusDigest(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Query().Get("refresh") == "1" {
+		refreshFocusDigest()
+	}
+	if b, err := os.ReadFile(focusDigestPath()); err == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(b)
+		return
+	}
+	reason, detail := "unknown", "no digest yet"
+	if eb, err := os.ReadFile(storePath("focus_error.json")); err == nil {
+		var ej struct {
+			Reason string `json:"reason"`
+			Detail string `json:"detail"`
+		}
+		if json.Unmarshal(eb, &ej) == nil && ej.Reason != "" {
+			reason = ej.Reason
+			if ej.Detail != "" {
+				detail = ej.Detail
+			}
+		}
+	}
+	writeJSON(w, http.StatusNotFound, map[string]any{
+		"ok": false, "error": focusReasonText(reason, detail), "reason": reason,
+	})
+}
+
+func focusReasonText(reason, detail string) string {
+	switch reason {
+	case "no-chats":
+		return "No recent chats to rank yet"
+	case "gemini":
+		return "Gemini call failed"
+	case "budget":
+		return "Ranking budget exceeded"
+	case "contract":
+		return "Ranking output failed validation"
+	default:
+		return detail
+	}
+}
+
+func refreshFocusDigest() {
+	cmd, err := pythonCmd("focus.py", "--rank")
+	if err != nil {
+		fmt.Printf("[focus] rank skipped: %v\n", err)
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 80*time.Second)
+	defer cancel()
+	run := exec.CommandContext(ctx, cmd.Path, cmd.Args[1:]...)
+	run.Env = cmd.Env
+	out, err := run.CombinedOutput()
+	fmt.Printf("[focus] rank done err=%v out=%s\n", err, strings.TrimSpace(string(out)))
+}
+
+// scheduleFocusRank re-ranks hourly (2 min after start, then every hour).
+// A minute-tick lives in the Swift store; this is the provider-side cadence.
+func scheduleFocusRank() {
+	time.AfterFunc(2*time.Minute, func() {
+		refreshFocusDigest()
+		t := time.NewTicker(time.Hour)
+		defer t.Stop()
+		for range t.C {
+			refreshFocusDigest()
+		}
+	})
+}
+
+func handleFocusDone(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]any{"ok": false})
+		return
+	}
+	var body struct {
+		ID           string `json:"id"`
+		Title        string `json:"title"`
+		ChatJID      string `json:"chat_jid"`
+		LastActivity string `json:"last_activity"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || strings.TrimSpace(body.ID) == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "id required"})
+		return
+	}
+	cmd, err := pythonCmd("focus.py", "--mark-done", body.ID, body.Title, body.ChatJID, body.LastActivity)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": "no python"})
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	run := exec.CommandContext(ctx, cmd.Path, cmd.Args[1:]...)
+	run.Env = cmd.Env
+	if out, err := run.CombinedOutput(); err != nil {
+		fmt.Printf("[focus] mark-done failed: %v %s\n", err, strings.TrimSpace(string(out)))
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
 // ── servers ───────────────────────────────────────────────────────────────────
 
 func startServers(client *whatsmeow.Client, messageStore *MessageStore, logger waLog.Logger) {
 	startInternalServer(client, messageStore)
+	go scheduleFocusRank()
 
 	public := http.NewServeMux()
 	public.HandleFunc("/", serveWizard)
@@ -619,6 +775,8 @@ func startServers(client *whatsmeow.Client, messageStore *MessageStore, logger w
 	public.HandleFunc("/setup/state", withAuth(handleSetupState(client, messageStore)))
 	public.HandleFunc("/setup/gemini", withAuth(handleGeminiKey))
 	public.HandleFunc("/setup/reset", withAuth(handleReset(client, logger)))
+	public.HandleFunc("/focus/top10", withAuth(serveFocusDigest))
+	public.HandleFunc("/focus/done", withAuth(handleFocusDone))
 
 	port := os.Getenv("PORT")
 	if port == "" {

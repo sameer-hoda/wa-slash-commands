@@ -71,7 +71,7 @@ cp packaging/Mosaic.icns "$APP/Contents/Resources/Mosaic.icns"
 cp packaging/TESTERS.txt "$APP/Contents/Resources/TESTERS.txt" 2>/dev/null || true
 cp "$BUILD/wa-bridge" "$APP/Contents/Resources/wa-bridge"
 cp "$REPO/wacmd.py" "$REPO/engine.py" "$REPO/formatter.py" "$REPO/ledger.py" \
-   "$REPO/mechat.py" "$REPO/scripts/gemini_check.py" "$REPO/requirements.txt" \
+   "$REPO/mechat.py" "$REPO/focus.py" "$REPO/scripts/gemini_check.py" "$REPO/requirements.txt" \
    "$APP/Contents/Resources/python/"
 rm -rf "$APP/Contents/Resources/python-runtime"
 cp -R "$RT" "$APP/Contents/Resources/python-runtime"

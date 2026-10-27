@@ -101,6 +101,9 @@ func (store *MessageStore) StoreChat(jid, name string, lastMessageTime time.Time
 		"INSERT OR REPLACE INTO chats (jid, name, last_message_time) VALUES (?, ?, ?)",
 		jid, name, lastMessageTime,
 	)
+	if err == nil {
+		noteStoreWrite()
+	}
 	return err
 }
 
@@ -118,7 +121,18 @@ func (store *MessageStore) StoreMessage(id, chatJID, sender, content string, tim
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		id, chatJID, sender, content, timestamp, isFromMe, mediaType, filename, url, mediaKey, fileSHA256, fileEncSHA256, fileLength,
 	)
+	if err == nil {
+		noteStoreWrite()
+		syncStoredMsgs.Add(1)
+	}
 	return err
+}
+
+// ChatCount returns the number of known chats (for the sync loader bar).
+func (store *MessageStore) ChatCount() (int, error) {
+	var n int
+	err := store.db.QueryRow("SELECT COUNT(*) FROM chats").Scan(&n)
+	return n, err
 }
 
 // Get messages from a chat

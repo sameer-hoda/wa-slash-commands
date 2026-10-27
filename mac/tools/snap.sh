@@ -37,5 +37,8 @@ curl -sf -o /dev/null "http://127.0.0.1:18081/health" \
   || { echo "isolated bridge never came up; see /tmp/mosaic-shot-bridge.log" >&2; exit 1; }
 shot "MOSAIC_SETUP_URL=http://127.0.0.1:18081 MOSAIC_SUPPORT_DIR=$SHOTDIR" "$OUT/fresh.png"
 
+echo "==> focus shot (sample digest, no bridge)"
+"$BIN" --render-shot-focus "$OUT/focus.png"
+
 echo "SNAPSHOT done $OUT"
 ls -l "$OUT"

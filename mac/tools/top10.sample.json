@@ -1,0 +1,131 @@
+{
+  "generated_at": "2026-10-27T19:45:00+05:30",
+  "headline": "Launch is gated on pricing copy and the Acme deck.",
+  "items": [
+    {
+      "id": "417695aae597",
+      "rank": 1,
+      "title": "Send Acme the Q4 deck",
+      "why": "They asked for it by Monday — the deal review depends on it.",
+      "chat_name": "Launch Squad",
+      "chat_jid": "120363012345678901@g.us",
+      "source": "deadline",
+      "urgency": "critical",
+      "waiting_on": "you",
+      "last_activity": "2026-10-27T18:10:00+05:30",
+      "due": "2026-10-27T16:00:00+05:30"
+    },
+    {
+      "id": "5edfcab35322",
+      "rank": 2,
+      "title": "Lock starter pricing at ₹499",
+      "why": "You noted this to yourself twice; Priya is waiting on final copy.",
+      "chat_name": "Note to self",
+      "chat_jid": "919800000000@s.whatsapp.net",
+      "source": "self_note",
+      "urgency": "critical",
+      "waiting_on": "you",
+      "last_activity": "2026-10-27T18:10:00+05:30",
+      "due": "2026-10-28T16:00:00+05:30"
+    },
+    {
+      "id": "b44e1f5c4bed",
+      "rank": 3,
+      "title": "Book the Acme demo slot for Tue",
+      "why": "Rohan asked you directly this morning.",
+      "chat_name": "Launch Squad",
+      "chat_jid": "120363012345678901@g.us",
+      "source": "ask",
+      "urgency": "high",
+      "waiting_on": "you",
+      "last_activity": "2026-10-27T18:10:00+05:30",
+      "due": "2026-10-28T22:00:00+05:30"
+    },
+    {
+      "id": "73d944c56725",
+      "rank": 4,
+      "title": "Reply to Meera on the iOS checkout redirect",
+      "why": "Blocking QA sign-off for Thursday's launch.",
+      "chat_name": "Launch Squad",
+      "chat_jid": "120363012345678901@g.us",
+      "source": "ask",
+      "urgency": "high",
+      "waiting_on": "you",
+      "last_activity": "2026-10-27T18:10:00+05:30"
+    },
+    {
+      "id": "8a5be249b94d",
+      "rank": 5,
+      "title": "Draft the investor update",
+      "why": "Self-reminder from Sunday — monthly update is due Friday.",
+      "chat_name": "Note to self",
+      "chat_jid": "919800000000@s.whatsapp.net",
+      "source": "self_note",
+      "urgency": "high",
+      "waiting_on": "you",
+      "last_activity": "2026-10-27T18:10:00+05:30",
+      "due": "2026-10-30T18:00:00+05:30"
+    },
+    {
+      "id": "e76ddf6dee5b",
+      "rank": 6,
+      "title": "Confirm vendor invoice with finance",
+      "why": "Ankit flagged a mismatch of ₹18,400.",
+      "chat_name": "Finance Ops",
+      "chat_jid": "120363098765432109@g.us",
+      "source": "follow_up",
+      "urgency": "normal",
+      "waiting_on": "them",
+      "last_activity": "2026-10-27T18:10:00+05:30"
+    },
+    {
+      "id": "1b93ff031d60",
+      "rank": 7,
+      "title": "Review Arjun's landing-page copy",
+      "why": "You promised feedback “by tonight” yesterday.",
+      "chat_name": "Web Revamp",
+      "chat_jid": "120363055555555555@g.us",
+      "source": "commitment",
+      "urgency": "normal",
+      "waiting_on": "you",
+      "last_activity": "2026-10-27T18:10:00+05:30"
+    },
+    {
+      "id": "babbbe0829ba",
+      "rank": 8,
+      "title": "Share hiring scorecard for the PM role",
+      "why": "Panel is on Wednesday.",
+      "chat_name": "Hiring — PM",
+      "chat_jid": "120363044444444444@g.us",
+      "source": "deadline",
+      "urgency": "normal",
+      "waiting_on": "you",
+      "last_activity": "2026-10-27T18:10:00+05:30",
+      "due": "2026-10-29T10:00:00+05:30"
+    },
+    {
+      "id": "dcb4b88872af",
+      "rank": 9,
+      "title": "Call the CA about advance tax",
+      "why": "Saved to self: “ask about Q3 installment”.",
+      "chat_name": "Note to self",
+      "chat_jid": "919800000000@s.whatsapp.net",
+      "source": "self_note",
+      "urgency": "normal",
+      "waiting_on": "you",
+      "last_activity": "2026-10-27T18:10:00+05:30"
+    },
+    {
+      "id": "8f818c221589",
+      "rank": 10,
+      "title": "Nudge Kabir for the API keys",
+      "why": "Waiting 3 days — integration can’t start without them.",
+      "chat_name": "Partner — Kabir",
+      "chat_jid": "919811111111@s.whatsapp.net",
+      "source": "follow_up",
+      "urgency": "normal",
+      "waiting_on": "them",
+      "last_activity": "2026-10-27T18:10:00+05:30"
+    }
+  ]
+}

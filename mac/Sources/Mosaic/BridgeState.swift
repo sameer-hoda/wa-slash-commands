@@ -14,10 +14,14 @@ struct SetupState: Decodable {
     var gemini_key = ""
     var qr_data_url = ""
     var last_message_at = ""
+    var syncing_chats = false
+    var synced_chats = 0
+    var synced_messages = 0
 
     enum CodingKeys: String, CodingKey {
         case paired, connected, mechat_jid, mechat_phone, mechat_how,
-             welcomed, gemini_key, qr_data_url, last_message_at
+             welcomed, gemini_key, qr_data_url, last_message_at,
+             syncing_chats, synced_chats, synced_messages
     }
 }
 
@@ -29,8 +33,13 @@ final class SetupModel: ObservableObject {
     @Published var keyOk = false
 
     private var timer: Timer?
+    private var wasOnboarded = false
+    private var slowPoll = false
     /// Called with the validated key so the shell can persist it (Keychain).
     var onKeyValidated: ((String) -> Void)?
+    /// Fired once when pairing completes (mechat_jid appears) so the shell
+    /// can swap the setup window for the Focus window.
+    var onOnboarded: (() -> Void)?
 
     /// Snapshot/test hook: MOSAIC_SETUP_URL points at an isolated bridge.
     /// Production always uses the loopback bridge on 8081.
@@ -60,9 +69,39 @@ final class SetupModel: ObservableObject {
             let decoded = try JSONDecoder().decode(SetupState.self, from: data)
             state = decoded
             reachable = true
+            // SPEC §2: stop the 2 s setup poll once paired; Focus has its own
+            // hourly schedule. Rebuild the timer at 30 s.
+            if !slowPoll, !decoded.mechat_jid.isEmpty {
+                slowPoll = true
+                timer?.invalidate()
+                timer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
+                    Task { @MainActor [weak self] in await self?.refresh() }
+                }
+            }
+            if !wasOnboarded, !decoded.mechat_jid.isEmpty {
+                wasOnboarded = true
+                onOnboarded?()
+            }
+            if decoded.mechat_jid.isEmpty { wasOnboarded = false }
         } catch {
             reachable = false
         }
+    }
+
+    /// Unpair this Mac (bridge calls whatsmeow Logout + wipes its databases).
+    func reset() {
+        keyMessage = nil
+        guard let url = URL(string: "\(setupBase)/setup/reset") else { return }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.timeoutInterval = 15
+        URLSession.shared.dataTask(with: req) { [weak self] _, _, _ in
+            Task { @MainActor [weak self] in
+                self?.slowPoll = false
+                self?.start()
+                await self?.refresh()
+            }
+        }.resume()
     }
 
     func qrImage() -> NSImage? {
