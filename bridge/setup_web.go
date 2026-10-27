@@ -4,7 +4,7 @@ package main
 //   * STORE_DIR-aware paths + bridge token for the internal API
 //   * web setup page: QR (PNG data-URL, auto-refresh), Gemini-key tick,
 //     connected view, Unlink — behind a setup password
-//   * /health for Railway healthchecks
+//   * /health for liveness checks (Supervisor + clean-room probes)
 //   * python hooks: wacmd per /command, mechat.py --resolve --welcome at launch
 //   * single source of truth for Me-chat state: store/mechat.json
 
@@ -52,6 +52,9 @@ var (
 	geminiMu        sync.Mutex
 	geminiKeyCached string
 	geminiCheckedAt time.Time
+	// geminiKeyLive holds a just-validated key in memory only. It is the
+	// bridge's only key store besides the Supervisor-provided env var.
+	geminiKeyLive string
 
 	resolveMu     sync.Mutex
 	lastResolveAt time.Time
@@ -125,7 +128,22 @@ func cookieValue() string {
 	return hex.EncodeToString(mac.Sum(nil))
 }
 
+// Local Mac mode: the setup page is loopback-only (see setupBindAddr), so
+// the legacy cloud password gate is skipped via SETUP_NO_AUTH=1, which the
+// bundled app always sets. Without this, first launch prints a generated
+// password nowhere the user can find it.
+func noAuthMode() bool {
+	return os.Getenv("SETUP_NO_AUTH") == "1"
+}
+
+func setupBindAddr(port string) string {
+	return "127.0.0.1:" + port
+}
+
 func validCookie(r *http.Request) bool {
+	if noAuthMode() {
+		return true
+	}
 	c, err := r.Cookie(cookieName)
 	if err != nil {
 		return false
@@ -241,67 +259,219 @@ func readMechatState() mechatState {
 
 // ── Gemini key validity (cached 60 s, checked by gemini_check.py) ────────────
 
+func classifyGeminiOutput(out string) string {
+	switch out {
+	case "valid", "invalid", "missing":
+		return out
+	default:
+		return "invalid"
+	}
+}
+
+// The Gemini key is Keychain-only: it arrives from the Supervisor as the
+// GEMINI_API_KEY process env var, or is validated live in handleGeminiKey
+// and kept in process memory. It is NEVER written to disk — there is no
+// gemini_key file and no file fallback anywhere in this bridge.
+func noteValidatedKey(key string) {
+	geminiMu.Lock()
+	geminiKeyLive = strings.TrimSpace(key)
+	geminiMu.Unlock()
+}
+
+// resolveGeminiKey precedence: explicit key > validated in-memory key >
+// Supervisor-provided process env. Disk is not consulted, by design.
+func resolveGeminiKey(key string) string {
+	if strings.TrimSpace(key) != "" {
+		return strings.TrimSpace(key)
+	}
+	geminiMu.Lock()
+	live := geminiKeyLive
+	geminiMu.Unlock()
+	if live != "" {
+		return live
+	}
+	return strings.TrimSpace(os.Getenv("GEMINI_API_KEY"))
+}
+
+// checkGeminiKey shells gemini_check.py, optionally with an explicit key.
+// Clean stdout wins over the exit code (0 valid / 1 missing / 2 invalid).
+func checkGeminiKey(key string) string {
+	cmd, err := pythonCmd("gemini_check.py")
+	if err != nil {
+		return "invalid"
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	run := exec.CommandContext(ctx, cmd.Path, cmd.Args[1:]...)
+	env := cmd.Env
+	if resolved := resolveGeminiKey(key); resolved != "" {
+		env = append(append([]string{}, env...),
+			"GEMINI_API_KEY="+resolved)
+	}
+	run.Env = env
+	out, _ := run.Output()
+	return classifyGeminiOutput(strings.TrimSpace(string(out)))
+}
+
 func geminiKeyStatus() string {
 	geminiMu.Lock()
-	defer geminiMu.Unlock()
 	if time.Since(geminiCheckedAt) < time.Minute && geminiKeyCached != "" {
-		return geminiKeyCached
+		cached := geminiKeyCached
+		geminiMu.Unlock()
+		return cached
 	}
-	status := "missing"
-	cmd, err := pythonCmd("gemini_check.py")
-	if err == nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
-		run := exec.CommandContext(ctx, cmd.Path, cmd.Args[1:]...)
-		run.Env = cmd.Env
-		out, err := run.Output()
-		cancel()
-		if err == nil {
-			status = strings.TrimSpace(string(out))
-			if status != "valid" && status != "invalid" && status != "missing" {
-				status = "invalid"
-			}
-		} else {
-			status = "invalid"
-		}
-	}
+	live := geminiKeyLive
+	geminiMu.Unlock()
+	// checkGeminiKey resolves (and locks) on its own — never hold geminiMu
+	// across it. Go mutexes are not reentrant; holding it here deadlocks
+	// every /setup/state poll.
+	status := checkGeminiKey(live)
+	geminiMu.Lock()
 	geminiKeyCached = status
 	geminiCheckedAt = time.Now()
+	geminiMu.Unlock()
 	return status
+}
+
+func resetGeminiCache() {
+	geminiMu.Lock()
+	geminiKeyCached = ""
+	geminiMu.Unlock()
+}
+
+// handleGeminiKey tests a pasted key live and keeps it in process memory
+// when valid, so the setup page itself completes the key step — no terminal,
+// no restart, and nothing on disk. The Swift shell persists the key to the
+// Keychain itself and passes it back as GEMINI_API_KEY on the next launch.
+func handleGeminiKey(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]any{"ok": false})
+		return
+	}
+	var body struct {
+		Key string `json:"key"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "status": "missing"})
+		return
+	}
+	status := checkGeminiKey(body.Key)
+	if status == "valid" {
+		noteValidatedKey(body.Key)
+		resetGeminiCache()
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": status == "valid", "status": status})
 }
 
 // ── python bridge helpers ─────────────────────────────────────────────────────
 
 func pythonEnv() []string {
-	return append(os.Environ(),
+	// os.Environ already carries the Supervisor-provided GEMINI_API_KEY.
+	// A just-validated live key covers the window before the Supervisor
+	// relaunches with the Keychain key. Disk is never consulted.
+	env := append(os.Environ(),
 		"BRIDGE_TOKEN="+bridgeTokenVal,
 		"STORE_DIR="+absStorePath(""),
 		"MESSAGES_DB_PATH="+absStorePath("messages.db"),
 		"WHATSAPP_DB_PATH="+absStorePath("whatsapp.db"),
 		"WA_API_URL=http://127.0.0.1:8090/api/send",
 	)
+	if os.Getenv("GEMINI_API_KEY") == "" {
+		geminiMu.Lock()
+		live := geminiKeyLive
+		geminiMu.Unlock()
+		if live != "" {
+			env = append(env, "GEMINI_API_KEY="+live)
+		}
+	}
+	return env
+}
+
+// scriptSearchDirs orders Python lookup: the bundled app sets
+// PY_SCRIPTS_DIR (Resources/python); dev checkouts fall back to CWD,
+// scripts/, parent, parent scripts/.
+func scriptSearchDirs() []string {
+	dirs := []string{}
+	if d := os.Getenv("PY_SCRIPTS_DIR"); d != "" {
+		dirs = append(dirs, d)
+	}
+	return append(dirs, ".", "scripts", "..", filepath.Join("..", "scripts"))
+}
+
+func findScript(name string) string {
+	for _, dir := range scriptSearchDirs() {
+		cand := filepath.Join(dir, name)
+		if _, err := os.Stat(cand); err == nil {
+			return cand
+		}
+	}
+	return name
+}
+
+// pythonCandidates orders interpreters: explicit override first, then the
+// common Homebrew locations (which carry user-installed deps), then bare
+// PATH lookup. GUI-launched apps get a minimal PATH where "python3" is the
+// system interpreter without our deps — never rely on it alone.
+// bundlePythonFrom maps a Contents/MacOS binary to its bundled interpreter.
+func bundlePythonFrom(exe string) string {
+	if filepath.Base(filepath.Dir(exe)) != "MacOS" {
+		return ""
+	}
+	p := filepath.Join(filepath.Dir(filepath.Dir(exe)), "Resources",
+		"python-runtime", "bin", "python3")
+	if st, err := os.Stat(p); err == nil && !st.IsDir() {
+		return p
+	}
+	return ""
+}
+
+// bundlePython locates the interpreter shipped inside Mosaic.app.
+func bundlePython() string {
+	exe, err := os.Executable()
+	if err != nil {
+		return ""
+	}
+	return bundlePythonFrom(exe)
+}
+
+func pythonCandidates() []string {
+	c := []string{}
+	if p := strings.TrimSpace(os.Getenv("MOSAIC_PYTHON")); p != "" {
+		c = append(c, p)
+	}
+	if p := bundlePython(); p != "" {
+		c = append(c, p)
+	}
+	return append(c, "/opt/homebrew/bin/python3", "/usr/local/bin/python3", "python3")
+}
+
+var cachedPython = ""
+
+func findPython() string {
+	if cachedPython != "" {
+		return cachedPython
+	}
+	for _, cand := range pythonCandidates() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		cmd := exec.CommandContext(ctx, cand, "-c",
+			"import google.generativeai,dotenv,requests")
+		err := cmd.Run()
+		cancel()
+		if err == nil {
+			cachedPython = cand
+			return cand
+		}
+	}
+	return "python3"
 }
 
 func pythonCmd(name string, args ...string) (*exec.Cmd, error) {
-	// Scripts may live at the app root, in scripts/, or one level up —
-	// try the common locations so the bridge keeps working from any CWD.
-	candidates := []string{
-		name,
-		filepath.Join("scripts", name),
-		filepath.Join("..", name),
-		filepath.Join("..", "scripts", name),
-	}
-	script := candidates[0]
-	for _, cand := range candidates {
-		if _, err := os.Stat(cand); err == nil {
-			script = cand
-			break
-		}
-	}
+	script := findScript(name)
 	abs, err := filepath.Abs(script)
 	if err != nil {
 		return nil, err
 	}
-	cmd := exec.Command("python3", append([]string{abs}, args...)...)
+	cmd := exec.Command(findPython(), append([]string{abs}, args...)...)
 	cmd.Env = pythonEnv()
 	return cmd, nil
 }
@@ -447,6 +617,7 @@ func startServers(client *whatsmeow.Client, messageStore *MessageStore, logger w
 	public.HandleFunc("/health", handleHealth(client, messageStore))
 	public.HandleFunc("/setup/login", handleLogin)
 	public.HandleFunc("/setup/state", withAuth(handleSetupState(client, messageStore)))
+	public.HandleFunc("/setup/gemini", withAuth(handleGeminiKey))
 	public.HandleFunc("/setup/reset", withAuth(handleReset(client, logger)))
 
 	port := os.Getenv("PORT")
@@ -455,8 +626,11 @@ func startServers(client *whatsmeow.Client, messageStore *MessageStore, logger w
 	}
 	go func() {
 		fmt.Printf("Setup page on http://localhost:%s/ (health: /health)\n", port)
-		if err := http.ListenAndServe(":"+port, public); err != nil {
+		// Fail fast: a bridge that cannot bind is deaf but looks alive.
+		// The supervisor owns restart policy (backoff + crash-loop guard).
+		if err := http.ListenAndServe(setupBindAddr(port), public); err != nil {
 			fmt.Printf("Setup server error: %v\n", err)
+			os.Exit(1)
 		}
 	}()
 }

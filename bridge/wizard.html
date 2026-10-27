@@ -14,8 +14,8 @@
     --text: #fafafa;
     --muted: #a1a1aa;
     --dim: #71717a;
-    --accent: #8b5cf6;
-    --accent-2: #6366f1;
+    --accent: #e4e4e7;
+    --accent-2: #a1a1aa;
     --ok: #34d399;
     --warn: #fbbf24;
     --bad: #f87171;
@@ -51,8 +51,8 @@
     width: 40px; height: 40px; flex: none;
     display: grid; place-items: center;
     border-radius: 12px;
-    background: linear-gradient(135deg, rgba(139, 92, 246, .18), rgba(99, 102, 241, .10));
-    border: 1px solid rgba(139, 92, 246, .30);
+    background: linear-gradient(135deg, rgba(228, 228, 231, .10), rgba(161, 161, 170, .05));
+    border: 1px solid #2a2a30;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06);
   }
   .brand h1 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: .01em; }
@@ -65,8 +65,8 @@
 
   /* login */
   .field-label {
-    display: block; font-size: 11px; font-weight: 600; text-transform: uppercase;
-    letter-spacing: .09em; color: var(--dim); margin-bottom: 8px;
+    display: block; font-size: 13px; font-weight: 600;
+    color: var(--muted); margin-bottom: 8px;
   }
   input[type=password] {
     width: 100%; padding: 11px 13px;
@@ -77,8 +77,8 @@
   }
   input[type=password]::placeholder { color: #52525b; }
   input[type=password]:focus {
-    border-color: rgba(139, 92, 246, .55);
-    box-shadow: 0 0 0 3px rgba(139, 92, 246, .18);
+    border-color: rgba(228, 228, 231, .55);
+    box-shadow: 0 0 0 3px rgba(228, 228, 231, .12);
   }
 
   .btn {
@@ -163,8 +163,7 @@
   }
   .kv-row + .kv-row { border-top: 1px solid var(--border-soft); }
   .kv-row dt {
-    flex: none; font-size: 11px; font-weight: 600; text-transform: uppercase;
-    letter-spacing: .08em; color: var(--dim);
+    flex: none; font-size: 12.5px; font-weight: 600; color: var(--muted);
   }
   .kv-row dd { margin: 0; font-size: 13.5px; text-align: right; word-break: break-all; }
   .mono { font-family: var(--mono); font-size: 12.5px; }
@@ -181,6 +180,16 @@
   .bad { color: var(--bad); }
 
   .foot { font-size: 12px; text-align: center; max-width: 400px; }
+
+  .key-card {
+    padding: 15px; margin-bottom: 18px;
+    background: #0a0a0d;
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+  }
+  .key-row { display: flex; gap: 10px; }
+  .key-row input { flex: 1; margin: 0; }
+  .btn-inline { width: auto; flex: none; margin-top: 0; padding: 11px 18px; white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -188,10 +197,10 @@
   <header class="brand">
     <span class="mark" aria-hidden="true">
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-        <rect x="1" y="1" width="8" height="8" rx="2" fill="#8b5cf6" fill-opacity=".85"/>
-        <rect x="11" y="1" width="8" height="8" rx="2" fill="#8b5cf6" fill-opacity=".35"/>
-        <rect x="1" y="11" width="8" height="8" rx="2" fill="#8b5cf6" fill-opacity=".35"/>
-        <rect x="11" y="11" width="8" height="8" rx="2" fill="#6366f1" fill-opacity=".85"/>
+        <rect x="1" y="1" width="8" height="8" rx="2" fill="#e4e4e7" fill-opacity=".9"/>
+        <rect x="11" y="1" width="8" height="8" rx="2" fill="#e4e4e7" fill-opacity=".35"/>
+        <rect x="1" y="11" width="8" height="8" rx="2" fill="#e4e4e7" fill-opacity=".35"/>
+        <rect x="11" y="11" width="8" height="8" rx="2" fill="#34d399" fill-opacity=".9"/>
       </svg>
     </span>
     <div>
@@ -209,6 +218,14 @@
   </section>
 
   <section id="setup-view" class="view">
+    <div class="key-card">
+      <label class="field-label" for="gemini-key">Gemini API key</label>
+      <div class="key-row">
+        <input id="gemini-key" type="password" placeholder="Paste key from Google AI Studio" autocomplete="off">
+        <button id="gemini-btn" class="btn btn-primary btn-inline">Save &amp; test</button>
+      </div>
+      <p id="gemini-msg" class="hint muted"></p>
+    </div>
     <div class="status-pill"><span class="dot dot-pulse"></span>Waiting for pairing</div>
     <div class="qr-frame">
       <div class="qr-card">
@@ -231,13 +248,14 @@
     <dl class="kv">
       <div class="kv-row"><dt>Me chat</dt><dd id="mechat-line" class="mono">—</dd></div>
       <div class="kv-row"><dt>Last message</dt><dd id="last-line">—</dd></div>
-      <div class="kv-row"><dt>Resolved via</dt><dd id="how-line">—</dd></div>
-      <div class="kv-row"><dt>Welcome</dt><dd id="welcomed-line">—</dd></div>
+      <div class="kv-row"><dt>Found through</dt><dd id="how-line">—</dd></div>
+      <div class="kv-row"><dt>Welcome sent</dt><dd id="welcomed-line">—</dd></div>
     </dl>
+    <p id="mechat-hint" class="hint" style="display:none"></p>
     <div id="gemini-connected" class="tick muted"></div>
     <div class="divider"></div>
     <button id="unlink-btn" class="btn btn-danger">Unlink and wipe session</button>
-    <p class="hint muted">Removes the WhatsApp pairing — you'll scan a fresh QR code. Message history stays on the volume.</p>
+    <p class="hint muted">Removes the WhatsApp pairing — you'll scan a fresh QR code. Message history stays on this Mac.</p>
   </section>
 </main>
 
@@ -255,12 +273,19 @@
     });
   }
 
+  function geminiLabel(s) {
+    return s === 'valid' ? '<span class="ok">valid</span>' :
+           s === 'invalid' ? '<span class="bad">invalid</span>' :
+           '<span class="warn">not set</span>';
+  }
+
   function render(d) {
-    var gemini = d.gemini_key === 'valid' ? '<span class="ok">valid</span>' :
-                 d.gemini_key === 'invalid' ? '<span class="bad">invalid</span>' :
-                 '<span class="warn">not set</span>';
-    el('gemini-setup').innerHTML = 'Gemini key: ' + gemini;
-    el('gemini-connected').innerHTML = 'Gemini key: ' + gemini;
+    el('gemini-setup').innerHTML = 'Gemini key: ' + geminiLabel(d.gemini_key);
+    el('gemini-connected').innerHTML = 'Gemini key: ' + geminiLabel(d.gemini_key);
+    var msg = el('gemini-msg');
+    if (d.gemini_key === 'valid' && !msg.dataset.busy) {
+      msg.innerHTML = '<span class="ok">Key works — answers are on.</span>';
+    }
 
     if (!d.paired) {
       show('setup-view');
@@ -274,9 +299,14 @@
     var conn = d.connected ? '<span class="ok">Connected</span>' : '<span class="warn">reconnecting…</span>';
     var phone = d.mechat_phone ? ('+' + d.mechat_phone) : 'unknown number';
     el('connected-line').innerHTML = conn + ' as ' + phone;
-    var mech = d.mechat_jid ? d.mechat_jid : '<span class="bad">NOT FOUND YET</span>';
+    var mech = d.mechat_jid ? d.mechat_jid : '<span class="bad">not found yet</span>';
     if (d.mechat_jid && !d.welcomed) { mech += ' <span class="warn">(welcome pending)</span>'; }
     el('mechat-line').innerHTML = mech;
+    var hint = el('mechat-hint');
+    if (!d.mechat_jid) {
+      hint.style.display = 'block';
+      hint.innerHTML = 'Send yourself any message on WhatsApp first — open your own chat, say hello, and this page fills in on its own.';
+    } else { hint.style.display = 'none'; hint.innerHTML = ''; }
     el('last-line').textContent = d.last_message_at || '—';
     el('how-line').textContent = d.mechat_how || '—';
     el('welcomed-line').textContent = d.welcomed ? 'yes' : 'not yet';
@@ -305,12 +335,43 @@
     if (e.key === 'Enter') { el('login-btn').click(); }
   });
 
+  el('gemini-btn').addEventListener('click', function () {
+    var input = el('gemini-key'), msg = el('gemini-msg');
+    var key = input.value.trim();
+    if (!key) { msg.innerHTML = '<span class="warn">Paste a key first.</span>'; return; }
+    msg.dataset.busy = '1';
+    msg.innerHTML = '<span class="muted">Testing key…</span>';
+    fetch('/setup/gemini', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: key })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      delete msg.dataset.busy;
+      if (d.ok) {
+        input.value = '';
+        msg.innerHTML = '<span class="ok">Key works — saved on this Mac.</span>';
+      } else if (d.status === 'missing') {
+        msg.innerHTML = '<span class="warn">That came back empty — paste the full key.</span>';
+      } else {
+        msg.innerHTML = '<span class="bad">Key rejected — check it in Google AI Studio (billing enabled).</span>';
+      }
+      tick();
+    }).catch(function () {
+      delete msg.dataset.busy;
+      msg.innerHTML = '<span class="bad">Network error — is the app still running?</span>';
+    });
+  });
+
+  el('gemini-key').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { el('gemini-btn').click(); }
+  });
+
   el('unlink-btn').addEventListener('click', function () {
     if (!confirm('Unlink this WhatsApp session? You will need to scan a new QR code.')) { return; }
     fetch('/setup/reset', { method: 'POST' }).then(tick);
   });
 
-  show('login-view');
+  show('setup-view');
   tick();
   setInterval(tick, 2000);
 })();

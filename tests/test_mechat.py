@@ -38,6 +38,19 @@ def test_resolve_lid_freshest_wins(store, monkeypatch):
     assert mechat.verify_mechat(jid)
 
 
+def test_resolve_prefers_from_me_evidence(store, monkeypatch):
+    # PN chat is newer but has no sent-from-me rows; the LID chat with real
+    # from-me rows is the self-chat. Freshness alone must not win.
+    _fixtures(store, messages=[
+        (PN_JID, "Someone", [("2026-10-17 09:00:00", 0, "not mine")]),
+        (LID_JID, "Me (You)", [("2026-10-10 09:00:00", 1, "mine")]),
+    ], monkeypatch=monkeypatch)
+    jid, how = mechat.resolve_self_chat()
+    assert jid == LID_JID
+    assert how == "messages:session-db"
+    assert mechat.verify_mechat(jid)
+
+
 def test_resolve_definitional_pn_without_messages(store, monkeypatch):
     _fixtures(store, messages=[], monkeypatch=monkeypatch)
     jid, how = mechat.resolve_self_chat()

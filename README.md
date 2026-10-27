@@ -9,8 +9,6 @@
 
 <h3><strong>312 unread messages. 3 things you actually owe. One command to find them.</strong></h3>
 
-<a href="https://railway.com/deploy/wa-slash-commands"><img src="https://railway.com/button.svg" alt="Deploy on Railway" height="44"></a>
-
 <br>
 
 <img alt="Python" src="https://img.shields.io/badge/Python-3.10+-blue.svg">
@@ -77,36 +75,24 @@ wa-slash-commands is one command that reads the room for you.
 
 *Illustrative screenshots built with fictional data — no real chats are shown.*
 
-## Start on Railway (recommended, ~3 minutes)
+## Install on Mac (Apple Silicon DMG, recommended)
 
-<p align="center">
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/setup-v2-dark.webp">
-  <img src="assets/setup-v2.webp" width="100%" alt="Live in about three minutes: 1 Deploy, 2 Link your phone, 3 Type /pending">
-</picture>
-</p>
+The hosted Railway path is retired ([why](docs/RAILWAY_DEPRECATED.md)). The app is
+local-first now: everything lives on your Mac, nothing listens on a network port.
 
-1. Hit **Deploy on Railway** (button above) — the template asks for exactly two things:
-   your `GEMINI_API_KEY` and a `SETUP_PASSWORD`. Nothing is baked in.
-2. Open the deployed URL, log in with your setup password and
-   **link your phone**: WhatsApp → <kbd>Settings → Linked devices → Link a device</kbd> →
-   scan the QR.
-3. When the page says `Connected as +91… · Me chat: …` (and a welcome lands in your
-   Me chat), type `/pending` in any group. Done.
+1. Open `dist/Mosaic.dmg`, drag **Mosaic** onto **Applications**, eject the DMG.
+2. Launch Mosaic from Applications (first launch: right-click → Open, until the
+   build is Developer-ID signed and notarized).
+3. Paste your [Gemini API key](https://aistudio.google.com/apikey) — it is validated
+   live and stored in your Keychain, never in a file. Then **link your phone**:
+   WhatsApp → <kbd>Settings → Linked devices → Link a device</kbd> → scan the QR.
+4. When the window says `Connected as +91…` (and a welcome lands in your Me chat),
+   type `/pending` in any group. Done.
 
-Prefer a terminal? One command does all of the above:
-
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/sameer-hoda/wa-slash-commands/master/deploy-railway.sh)
-```
-
-The `/data` volume (it holds your pairing and message history) is required and the service
-stays at **one replica** — both are handled by the template and the deploy script.
-Full details and troubleshooting: [docs/RAILWAY.md](docs/RAILWAY.md). Re-running the deploy
-updates in place and keeps your pairing.
+Requirements: Apple Silicon, macOS 14+. Intel Macs are not supported in v1.
 
 <details>
-<summary>Running locally instead (macOS / Linux)</summary>
+<summary>Running from source instead (macOS / Linux)</summary>
 
 ```bash
 # all-in-one: dependency check, clone, setup wizard
@@ -210,8 +196,8 @@ no group metadata, and nothing from chats you didn't run a command in.
 The software is free (MIT). You need a
 [Gemini API key](https://aistudio.google.com/apikey) from a **billing-enabled** project:
 on the free tier Google may use your traffic to improve its models — which you probably
-don't want for group messages — while paid key usage is cents per command. On Railway,
-plan on a hobby instance (≈ $5/mo) for the always-on container.
+don't want for group messages — while paid key usage is cents per command. The Mac
+app itself is free and runs on your own machine, so there is no hosting bill.
 
 </details>
 
@@ -269,7 +255,8 @@ see [CONTRIBUTING.md](CONTRIBUTING.md).
 MIT © [Sameer Hoda](https://github.com/sameer-hoda) ·
 [CHANGELOG](CHANGELOG.md) ·
 [Security policy](SECURITY.md) ·
-[Railway deploy guide](docs/RAILWAY.md) ·
-[Setup guide](SETUP.md)
+[Setup guide](SETUP.md) ·
+[Mac DMG spec](docs/MAC_DMG_SPEC_V2.md) ·
+[Why Railway was retired](docs/RAILWAY_DEPRECATED.md)
 
 *Not affiliated with WhatsApp or Meta.*

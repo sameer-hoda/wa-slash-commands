@@ -12,14 +12,15 @@ Expect an acknowledgement within 72 hours.
 ## Scope
 
 - **Bridge send API** — the Go bridge exposes a send API used by the Python engine. It is
-  bound to loopback only and requires a shared token (`store/bridge_token`, auto-generated).
-- **Setup page** — behind `SETUP_PASSWORD`. If you leave it unset, a password is generated
-  at boot and printed in the logs.
-- **Pairing data** — WhatsApp session credentials live in `store/whatsapp.db` and your
-  message history in `store/messages.db`. Back these up privately; anyone with access to
-  the volume can read the linked session and history.
-- **Gemini key** — stored in your environment (`GEMINI_API_KEY`) or Railway variables.
-  Never commit it, and prefer/use a key with a spend limit.
+  bound to loopback only and requires a shared token (auto-generated per launch).
+- **Setup page** — loopback-only with no password gate on the Mac app (it is reachable
+  only from your own Mac). Remove the app's data dir to force a fresh pairing.
+- **Pairing data** — WhatsApp session credentials and message history live only under
+  `~/Library/Application Support/Mosaic/`. Anyone with access to your Mac login can
+  read the linked session and history; FileVault covers the at-rest case.
+- **Gemini key** — stored in your Keychain (`com.sameerhoda.mosaic`), passed to child
+  processes as an environment variable, never written to disk. Prefer/use a key with
+  a spend limit.
 
 Out of scope: WhatsApp account-level risks inherent to unofficial protocol clients
 (see the README FAQ).

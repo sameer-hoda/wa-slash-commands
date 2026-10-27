@@ -37,6 +37,9 @@ bridge/.tmpcgo/
 
 # Local cache
 cache/
+# BAMA-style build outputs (reproducible via mac/build.sh; never commit)
+build/
+dist/
 bridge/.gotmp/
 .pytest_cache/
 bridge/whatsapp-client

@@ -1,0 +1,39 @@
+Mosaic — for testers
+====================
+
+You need: an Apple Silicon Mac running macOS 14 or newer. Nothing else.
+Python and everything Mosaic needs is inside the app. No Terminal needed
+unless something goes wrong (see below).
+
+Install
+-------
+1. Open Mosaic.dmg and drag Mosaic.app into Applications.
+2. Open Mosaic from Applications. The first time, right-click it and
+   choose Open (the app is not notarized yet, so double-click is blocked).
+3. A setup window appears. Everything below happens there — no browser.
+
+Onboard (2 minutes)
+-------------------
+1. Paste your Gemini API key and press Save & test. Green tick means it
+   works. Get a key free at https://aistudio.google.com/apikey
+2. Scan the QR code: WhatsApp on your phone → Settings → Linked Devices
+   → Link a device → point at the screen.
+3. Send yourself any WhatsApp message (your own chat). The window confirms
+   your Me chat on its own.
+
+Use it
+------
+Type /help in any WhatsApp group. The answer lands in your Me chat —
+nothing is ever posted into groups. Commands: /help /pending /stats
+/recap /eli5 /sotu.
+
+Your data (key, pairing, history) lives only on your Mac, in
+~/Library/Application Support/Mosaic/. Nothing leaves the machine except
+the messages you ask about, which go to Google Gemini for summarizing.
+
+If something looks wrong
+------------------------
+Menu bar → Mosaic icon shows status. Quit from the menu and reopen.
+To start over completely: quit the app, delete
+~/Library/Application Support/Mosaic/, reopen, and re-pair. Also remove
+the old device under WhatsApp → Linked Devices on your phone.

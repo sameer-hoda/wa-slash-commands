@@ -7,8 +7,9 @@ Resolution order, first match wins, then verified (never a guess):
 
   1. explicit MECHAT_JID (env or store/mechat.json) — must verify as the owner
   2. session-derived: own PN + LID from whatsmeow_device / whatsmeow_lid_map
-  3. message-derived: freshest of the PN / LID self-chat forms in messages.db;
-     falling back to the account's own PN, which is the self-chat by definition
+  3. message-derived: PN / LID self-chat forms in messages.db, ranked by
+     sent-from-me evidence (is_from_me=1) then recency; falling back to the
+     account's own PN, which is the self-chat by definition
 
 Unresolved => fail loud: --resolve exits 2, wacmd answers are dropped with a log
 line, and nothing is ever sent to a guessed chat, a group, or anyone else.
@@ -103,9 +104,11 @@ def is_owner_jid(jid, session_db=None) -> bool:
 
 
 def resolve_self_chat(messages_db=None, session_db=None):
-    """Return (jid, how). Freshest of the PN/LID self-chat forms; own PN is the
-    definitional fallback (it IS the self-chat — not a guess). An explicit
-    MECHAT_JID is validated and, when invalid, fails loud — no fallback."""
+    """Return (jid, how). Freshest of the PN/LID self-chat forms, ranked by
+    sent-from-me evidence first (is_from_me=1 rows prove you wrote there),
+    then recency; own PN is the definitional fallback (it IS the self-chat —
+    not a guess). An explicit MECHAT_JID is validated and, when invalid,
+    fails loud — no fallback."""
     configured = os.getenv("MECHAT_JID", "").strip()
     if configured:
         if verify_mechat(configured, session_db):
@@ -117,27 +120,30 @@ def resolve_self_chat(messages_db=None, session_db=None):
     candidates = [f"{phone}@s.whatsapp.net"]
     if lid:
         candidates.append(f"{lid}@lid")
-    best = None
+    best = None  # (tier, latest_ts, jid)
     try:
         con = _open_ro(messages_db or _messages_db_path())
         try:
             for jid in candidates:
                 try:
                     row = con.execute(
-                        "SELECT COUNT(*), MAX(timestamp) FROM messages WHERE chat_jid = ?",
+                        "SELECT COUNT(*), MAX(timestamp), "
+                        "COALESCE(SUM(is_from_me), 0) FROM messages "
+                        "WHERE chat_jid = ?",
                         (jid,),
                     ).fetchone()
                 except Exception:
                     continue
                 if row and row[0]:
-                    if best is None or (row[1] or "") > (best[1] or ""):
-                        best = (jid, row[1])
+                    key = (1 if row[2] else 0, row[1] or "", jid)
+                    if best is None or key > best[0]:
+                        best = (key, jid)
         finally:
             con.close()
     except Exception:
         pass
     if best:
-        return best[0], f"messages:{src}"
+        return best[1], f"messages:{src}"
     return candidates[0], f"definitional-pn:{src}"
 
 

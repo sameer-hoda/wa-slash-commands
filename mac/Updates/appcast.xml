@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>Mosaic updates</title>
+    <!-- Sparkle 2 EdDSA appcast (spec v2 §5). Fill in release notes + signature at release time. -->
+    <item>
+      <title>1.0</title>
+      <sparkle:version>1.0</sparkle:version>
+      <enclosure url="" sparkle:version="1.0" length="0" type="application/octet-stream" sparkle:edSignature=""/>
+    </item>
+  </channel>
+</rss>

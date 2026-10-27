@@ -24,7 +24,7 @@ new random password on every boot.
 
 ## Step 4 — Link WhatsApp from the setup page
 
-Open **http://localhost:8081/** (or the port Railway provides):
+Open **http://localhost:8081/** (the Mac app opens its own setup window instead):
 
 1. Log in with your setup password (from `SETUP_PASSWORD`, or the one printed in the logs).
 2. Scan the QR with WhatsApp → **Linked devices → Link a device**.
